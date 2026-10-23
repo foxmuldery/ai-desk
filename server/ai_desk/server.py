@@ -82,6 +82,10 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("Referrer-Policy", "no-referrer")
+        self.send_header("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'")
         self.end_headers()
         self.wfile.write(body)
 
@@ -126,6 +130,10 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(content)))
             self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("X-Frame-Options", "DENY")
+            self.send_header("Referrer-Policy", "no-referrer")
+            self.send_header("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'")
             self.end_headers()
             self.wfile.write(content)
             return
@@ -225,8 +233,8 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main() -> None:
-    if BIND not in ("127.0.0.1", "localhost", "::1") and not TOKEN:
-        raise SystemExit("Refusing non-loopback bind without AI_DESK_TOKEN.")
+    if BIND not in ("127.0.0.1", "localhost", "::1") and len(TOKEN) < 32:
+        raise SystemExit("Refusing non-loopback bind without a strong AI_DESK_TOKEN (at least 32 characters).")
     recover_tasks()
     worker = threading.Thread(target=worker_loop, name="ai-desk-worker", daemon=True)
     worker.start()
