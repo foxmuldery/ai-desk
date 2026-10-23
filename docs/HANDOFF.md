@@ -91,7 +91,7 @@
 - GitHub Actions 首轮运行已排队，但尚未开始/完成，不能声称测试通过。
 - 未在 Mac Studio 本机运行。
 - 未在 S22 Ultra 实机验证 Typeless、通知、TTS。
-- 当前 Web UI 默认只适用于 Coordinator 所在电脑的 loopback 地址，手机跨设备访问方案尚未完成。
+- 当前 Web UI 默认只适用于 Coordinator 所在电脑的 loopback 地址。代码已要求非 loopback 绑定必须有强 token 与 TLS 证书/私钥，但手机信任证书及跨设备访问尚未实测。
 - 尚未实现真实 Codex adapter、多电脑 Agent、后台 Android 通知和安全的 LAN HTTPS。
 
 下一步：
