@@ -2,7 +2,7 @@
 
 将闲置的 Samsung Galaxy S22 Ultra 变成多电脑 AI 工作控制台：通过 Typeless 语音输入任务，统一调度多台 Mac 上的 Codex 与其他应用，并在任务完成、失败或需要决策时通知手机、播报结果。
 
-> **当前阶段：设计与工程骨架。** 本仓库目前沉淀产品方案、架构、接口草案、安全约束和验收计划；并不代表已有可安装应用或已验证的运行服务。
+> **当前阶段：单机 dry-run MVP 骨架已提交，尚待 CI 与真实设备验证。** 目前可以启动本地 HTTP 服务和手机网页界面；任务只经过 dry-run 适配器，不会执行 Codex、shell 或其他应用。
 
 ## 已确定的原则
 
@@ -68,6 +68,29 @@ flowchart TD
 | 5. Android 强化 | PWA 评估结果后决定是否原生封装 | 锁屏通知、TTS、后台行为 |
 
 详细计划见 [docs/ROADMAP.md](docs/ROADMAP.md)。
+
+## 本地运行（dry-run）
+
+要求：Python 3.11 或更新版本，无第三方 Python 依赖。
+
+在仓库根目录执行：
+
+```sh
+sh scripts/run-local.sh
+```
+
+脚本会生成临时 bearer token 并打印到终端，复制该 token 后在同一台 Mac 上打开 `http://127.0.0.1:8765`，输入令牌后即可提交 dry-run 测试任务。数据默认保存在 `data/ai-desk.sqlite3`。
+
+默认只绑定 `127.0.0.1`，所以手机不能直接访问这个地址。要让 S22 Ultra 访问，下一步必须先设计并验证受保护的局域网传输方式；不要简单把当前明文 HTTP 服务暴露到整个 LAN 或互联网。当前 UI 在页面前台可使用浏览器语音合成；后台通知尚未实现。
+
+运行测试：
+
+```sh
+PYTHONPATH=server python3 -m unittest discover -s tests -v
+PYTHONPATH=server python3 -m compileall -q server tests
+```
+
+当前 dry-run 是模拟执行，用于验证任务存储与 UI，不是 Codex 执行器。
 
 ## 文档索引
 
