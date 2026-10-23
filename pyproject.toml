@@ -1,0 +1,10 @@
+[project]
+name = "ai-desk"
+version = "0.1.0"
+description = "Local-first AI task desk for coordinating approved tasks across Macs"
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
