@@ -27,7 +27,10 @@
 - 幂等冲突与 HTTP 集成测试： [run 39956725929](https://github.com/foxmuldery/ai-desk/actions/runs/39956725929) — success。
 - 状态转换测试： [run 39956693179](https://github.com/foxmuldery/ai-desk/actions/runs/39956693179) — success。
 - 背景任务生命周期： [run 39956852474](https://github.com/foxmuldery/ai-desk/actions/runs/39956852474) — success。
-- 最新 worker 异常保护改动： [run 39956923150](https://github.com/foxmuldery/ai-desk/actions/runs/39956923150) — 提交时仍在排队，结果待确认。
+- 背景任务生命周期： [run 39956852474](https://github.com/foxmuldery/ai-desk/actions/runs/39956852474) — success。
+- Worker 异常保护： [run 39956923150](https://github.com/foxmuldery/ai-desk/actions/runs/39956923150) — success。
+- 安全响应头与非 loopback 强令牌限制： [run 39957059833](https://github.com/foxmuldery/ai-desk/actions/runs/39957059833) — success。
+- 任务事件审计轨迹测试： [run 39957078158](https://github.com/foxmuldery/ai-desk/actions/runs/39957078158) — success。
 
 注意：各条 CI 对应不同 commit；应以最新 commit 对应的 workflow 结果作为最终验收。
 
