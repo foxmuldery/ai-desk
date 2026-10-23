@@ -118,6 +118,23 @@ class CoordinatorHTTPTests(unittest.TestCase):
         self.assertEqual(status, 400)
         self.assertEqual(payload["error"]["code"], "ADAPTER_NOT_ALLOWED")
 
+    def test_idempotency_key_conflict_is_rejected(self):
+        base = {
+            "instruction": "First task",
+            "target_device_id": "mac-studio",
+            "adapter": "dry-run",
+            "working_directory_id": "demo",
+        }
+        self.request_json("/api/v1/tasks", method="POST", token=self.token,
+                          idem="conflict-key", body=base)
+        changed = dict(base, instruction="Different task")
+        status, payload = self.request_json(
+            "/api/v1/tasks", method="POST", token=self.token,
+            idem="conflict-key", body=changed,
+        )
+        self.assertEqual(status, 409)
+        self.assertEqual(payload["error"]["code"], "IDEMPOTENCY_KEY_CONFLICT")
+
     def test_idempotency_does_not_duplicate(self):
         body = {
             "instruction": "Idempotency check",
