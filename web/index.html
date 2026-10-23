@@ -114,6 +114,10 @@ async function checkHealth() {
 }
 async function loadTasks() {
   $("error").textContent = "";
+  if (!$("token").value.trim()) {
+    $("tasks").innerHTML = '<div class="muted">输入本地服务令牌后即可查看任务。</div>';
+    return;
+  }
   try {
     const r = await fetch("/api/v1/tasks?limit=30", {headers:authHeaders()});
     const d = await r.json();
