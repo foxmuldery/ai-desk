@@ -88,9 +88,34 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("X-Frame-Options", "DENY")
         self.send_header("Referrer-Policy", "no-referrer")
-        self.send_header("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'")
+        self.send_header("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'")
         self.end_headers()
         self.wfile.write(body)
+
+    def _send_static(self, path: str) -> bool:
+        assets = {
+            "/app.js": (WEB_DIR / "app.js", "application/javascript; charset=utf-8"),
+            "/styles.css": (WEB_DIR / "styles.css", "text/css; charset=utf-8"),
+        }
+        asset = assets.get(path)
+        if asset is None:
+            return False
+        file_path, content_type = asset
+        if not file_path.is_file():
+            self._json(404, {"error": {"code": "ASSET_NOT_FOUND", "message": "Static asset not found"}})
+            return True
+        body = file_path.read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("Referrer-Policy", "no-referrer")
+        self.send_header("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'")
+        self.end_headers()
+        self.wfile.write(body)
+        return True
 
     def _authorized(self) -> bool:
         # Health and the static UI shell are public; task data and writes require a bearer token.
@@ -127,6 +152,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
         path = parsed.path
+        if self._send_static(path):
+            return
         if path == "/":
             content = (WEB_DIR / "index.html").read_bytes()
             self.send_response(200)
