@@ -22,3 +22,5 @@ jobs:
         env:
           PYTHONPATH: server
         run: python -m compileall -q server tests
+      - name: Check frontend JavaScript syntax
+        run: node --check web/app.js
