@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#111114">
+  <title>AI Desk｜AI 总机</title>
+  <style>
+    :root { color-scheme: dark; --bg:#111114; --panel:#1b1b21; --line:#33333c; --text:#f4f4f5; --muted:#a1a1aa; --red:#df3b43; --green:#53c98b; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:radial-gradient(ellipse at top,#292026 0,#111114 46%); color:var(--text); font:16px/1.45 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; min-height:100vh; }
+    main { max-width:760px; margin:0 auto; padding:20px 16px 48px; }
+    header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:4px 0 22px; }
+    h1 { font-size:22px; margin:0; letter-spacing:.02em; }
+    .sub,.muted { color:var(--muted); font-size:13px; }
+    .pill { border:1px solid var(--line); border-radius:99px; padding:5px 10px; font-size:12px; white-space:nowrap; }
+    .card { background:rgba(27,27,33,.94); border:1px solid var(--line); border-radius:18px; padding:16px; margin:12px 0; box-shadow:0 8px 30px #0002; }
+    label { display:block; color:#d4d4d8; font-size:13px; margin:10px 0 6px; }
+    input,textarea,select { width:100%; border:1px solid #44444e; background:#101014; color:var(--text); border-radius:10px; padding:12px; font:inherit; }
+    textarea { min-height:115px; resize:vertical; }
+    button { border:0; border-radius:12px; padding:12px 16px; font:inherit; font-weight:650; cursor:pointer; }
+    button:disabled { opacity:.45; cursor:not-allowed; }
+    .primary { background:var(--red); color:white; width:100%; margin-top:12px; }
+    .secondary { background:#303039; color:var(--text); }
+    .mic { width:78px; height:78px; border-radius:50%; background:linear-gradient(145deg,#f34d55,#b51f2b); box-shadow:0 0 0 8px #df3b431c,0 8px 28px #0007; font-size:30px; display:block; margin:8px auto 12px; }
+    .center { text-align:center; }
+    .row { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+    .tasks { display:grid; gap:10px; }
+    .task { border:1px solid var(--line); border-radius:12px; padding:12px; background:#151519; }
+    .task-title { font-weight:650; overflow-wrap:anywhere; }
+    .status { font-size:12px; border:1px solid var(--line); border-radius:99px; padding:3px 8px; white-space:nowrap; }
+    .status.succeeded { color:var(--green); border-color:#2b6549; }
+    .status.failed { color:#ff9da2; border-color:#71343a; }
+    .status.queued,.status.accepted,.status.running { color:#f6cb75; }
+    .summary { color:#d4d4d8; margin-top:8px; font-size:14px; overflow-wrap:anywhere; }
+    .error { color:#ff9da2; font-size:13px; white-space:pre-wrap; }
+    .hint { font-size:12px; color:var(--muted); margin-top:8px; }
+    @media(min-width:640px){ .split{display:grid;grid-template-columns:1fr 1fr;gap:12px;} }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div><h1>AI Desk <span style="color:var(--red)">/</span> AI 总机</h1><div class="sub">本地优先 · 多电脑任务控制台</div></div>
+    <span class="pill" id="connection">检查连接中</span>
+  </header>
+
+  <section class="card">
+    <div class="center">
+      <button class="mic" type="button" id="focusInput" aria-label="开始输入">✳</button>
+      <div><strong>交代任务</strong></div>
+      <div class="muted">点按输入框后，可切换到 Typeless 口述</div>
+    </div>
+    <label for="token">访问令牌</label>
+    <input id="token" type="password" autocomplete="current-password" placeholder="输入本机配置的 AI_DESK_TOKEN">
+    <div class="split">
+      <div><label for="target">执行电脑</label><select id="target"><option value="mac-studio">Mac Studio（MVP）</option></select></div>
+      <div><label for="adapter">任务适配器</label><select id="adapter"><option value="dry-run">Dry-run（仅模拟，不执行命令）</option></select></div>
+    </div>
+    <label for="instruction">任务指令</label>
+    <textarea id="instruction" placeholder="例如：检查项目测试，列出计划，但不要修改文件或部署。"></textarea>
+    <div class="hint">提交前请检查转写文字。当前版本只运行 dry-run 适配器，不会调用 Codex 或执行电脑命令。</div>
+    <button class="primary" id="submit">提交任务</button>
+    <div class="error" id="error" role="alert"></div>
+  </section>
+
+  <section class="card">
+    <div class="row"><h2 style="font-size:17px;margin:0">最近任务</h2><button class="secondary" id="refresh">刷新</button></div>
+    <div class="hint">任务保存在运行服务的电脑上；手机重新打开后可重新读取。</div>
+    <div class="tasks" id="tasks" style="margin-top:14px"><div class="muted">尚未加载任务</div></div>
+  </section>
+  <div class="hint center">AI Desk MVP · dry-run · 不要将此开发服务暴露到公网</div>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const statuses = {queued:"排队中",accepted:"已接收",running:"执行中",needs_input:"等待确认",succeeded:"成功",failed:"失败",cancelled:"已取消",unknown:"状态未知"};
+$("focusInput").addEventListener("click", () => $("instruction").focus());
+$("refresh").addEventListener("click", loadTasks);
+
+function authHeaders(extra={}) {
+  return {"Authorization":"Bearer "+$("token").value.trim(), ...extra};
+}
+function esc(value) {
+  return String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+async function checkHealth() {
+  try {
+    const r = await fetch("/api/v1/health");
+    const d = await r.json();
+    $("connection").textContent = d.ok ? "服务在线 · dry-run" : "服务异常";
+  } catch { $("connection").textContent = "无法连接"; }
+}
+async function loadTasks() {
+  $("error").textContent = "";
+  try {
+    const r = await fetch("/api/v1/tasks?limit=30", {headers:authHeaders()});
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error?.message || "读取任务失败");
+    if (!d.tasks.length) { $("tasks").innerHTML = '<div class="muted">暂无任务。可以先提交一条 dry-run 测试。</div>'; return; }
+    $("tasks").innerHTML = d.tasks.map(t => `
+      <article class="task">
+        <div class="row"><div class="task-title">${esc(t.title)}</div><span class="status ${esc(t.status)}">${esc(statuses[t.status] || t.status)}</span></div>
+        <div class="muted">${esc(t.id)} · ${esc(t.target_device_id)} · ${esc(t.created_at)}</div>
+        <div class="summary">${esc(t.summary || t.instruction)}</div>
+        <button class="secondary" style="margin-top:10px" data-task="${esc(t.id)}">查看事件</button>
+        <div class="summary" id="events-${esc(t.id)}" hidden></div>
+      </article>`).join("");
+    document.querySelectorAll("[data-task]").forEach(btn => btn.addEventListener("click", () => loadEvents(btn.dataset.task)));
+  } catch (e) {
+    $("error").textContent = e.message;
+    $("tasks").innerHTML = '<div class="muted">请输入有效令牌，或检查服务是否运行。</div>';
+  }
+}
+async function loadEvents(id) {
+  const box = $("events-"+id);
+  if (!box) return;
+  if (!box.hidden) { box.hidden = true; return; }
+  try {
+    const r = await fetch("/api/v1/tasks/"+encodeURIComponent(id)+"/events", {headers:authHeaders()});
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error?.message || "读取事件失败");
+    box.innerHTML = d.events.map(e => `<div style="border-top:1px solid var(--line);padding:8px 0"><div class="muted">${esc(e.at)} · ${esc(e.event_type)}</div><div>${esc(JSON.stringify(e.detail))}</div></div>`).join("");
+    box.hidden = false;
+  } catch(e) { $("error").textContent = e.message; }
+}
+$("submit").addEventListener("click", async () => {
+  $("error").textContent = "";
+  const instruction = $("instruction").value.trim();
+  if (!instruction) { $("error").textContent = "请先输入任务指令。"; return; }
+  const key = (crypto.randomUUID ? crypto.randomUUID() : Date.now()+"-"+Math.random());
+  $("submit").disabled = true;
+  try {
+    const r = await fetch("/api/v1/tasks", {
+      method:"POST",
+      headers:authHeaders({"Content-Type":"application/json","Idempotency-Key":key}),
+      body:JSON.stringify({instruction,target_device_id:$("target").value,adapter:$("adapter").value,working_directory_id:"demo"})
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error?.message || "任务提交失败");
+    $("instruction").value = "";
+    await loadTasks();
+    if ("speechSynthesis" in window && d.task.summary) {
+      const utterance = new SpeechSynthesisUtterance(d.task.summary);
+      utterance.lang = "zh-CN";
+      window.speechSynthesis.speak(utterance);
+    }
+  } catch(e) { $("error").textContent = e.message; }
+  finally { $("submit").disabled = false; }
+});
+checkHealth();
+</script>
+</body>
+</html>
