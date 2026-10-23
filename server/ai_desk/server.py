@@ -6,7 +6,6 @@ import os
 import queue
 import secrets
 import threading
-import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs
@@ -50,6 +49,9 @@ def worker_loop() -> None:
         task_id = task_queue.get()
         try:
             process_task(task_id)
+        except Exception as exc:
+            # Keep the worker alive if a storage/transition error escapes task handling.
+            print(f"Worker error for {task_id}: {type(exc).__name__}")
         finally:
             task_queue.task_done()
 
@@ -84,7 +86,7 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def _authorized(self) -> bool:
-        # Health and the static shell are intentionally unauthenticated only on loopback.
+        # Health and the static UI shell are public; task data and writes require a bearer token.
         if self.path.split("?")[0] in ("/api/v1/health", "/"):
             return True
         if not TOKEN:
