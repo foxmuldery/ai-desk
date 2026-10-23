@@ -5,6 +5,7 @@ import json
 import os
 import queue
 import secrets
+import ssl
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -19,6 +20,8 @@ DB_PATH = os.environ.get("AI_DESK_DB", str(ROOT / "data" / "ai-desk.sqlite3"))
 BIND = os.environ.get("AI_DESK_BIND", "127.0.0.1")
 PORT = int(os.environ.get("AI_DESK_PORT", "8765"))
 TOKEN = os.environ.get("AI_DESK_TOKEN", "")
+TLS_CERT = os.environ.get("AI_DESK_TLS_CERT", "")
+TLS_KEY = os.environ.get("AI_DESK_TLS_KEY", "")
 store = TaskStore(DB_PATH)
 task_queue: queue.Queue[str] = queue.Queue()
 
@@ -233,13 +236,24 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main() -> None:
-    if BIND not in ("127.0.0.1", "localhost", "::1") and len(TOKEN) < 32:
-        raise SystemExit("Refusing non-loopback bind without a strong AI_DESK_TOKEN (at least 32 characters).")
+    is_loopback = BIND in ("127.0.0.1", "localhost", "::1")
+    if not is_loopback:
+        if len(TOKEN) < 32:
+            raise SystemExit("Refusing non-loopback bind without a strong AI_DESK_TOKEN (at least 32 characters).")
+        if not TLS_CERT or not TLS_KEY or not Path(TLS_CERT).is_file() or not Path(TLS_KEY).is_file():
+            raise SystemExit("Refusing non-loopback bind without valid AI_DESK_TLS_CERT and AI_DESK_TLS_KEY files.")
     recover_tasks()
     worker = threading.Thread(target=worker_loop, name="ai-desk-worker", daemon=True)
     worker.start()
     server = ThreadingHTTPServer((BIND, PORT), Handler)
-    print(f"AI Desk dry-run coordinator listening on http://{BIND}:{PORT}")
+    scheme = "http"
+    if not is_loopback:
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        context.minimum_version = ssl.TLSVersion.TLSv1_2
+        context.load_cert_chain(certfile=TLS_CERT, keyfile=TLS_KEY)
+        server.socket = context.wrap_socket(server.socket, server_side=True)
+        scheme = "https"
+    print(f"AI Desk dry-run coordinator listening on {scheme}://{BIND}:{PORT}")
     print(f"Database: {DB_PATH}")
     server.serve_forever()
 
