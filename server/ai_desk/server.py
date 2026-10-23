@@ -8,7 +8,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 
-from .adapters import AdapterError, run_adapter
+from .adapters import run_adapter
 from .store import TaskStore
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -152,6 +152,18 @@ class Handler(BaseHTTPRequestHandler):
             working_directory_id=directory_id,
             idempotency_key=idem,
         )
+        if not created and (
+            task["instruction"] != instruction.strip()
+            or task["target_device_id"] != target
+            or task["adapter"] != adapter
+            or task["working_directory_id"] != directory_id
+        ):
+            self._json(409, {"error": {
+                "code": "IDEMPOTENCY_KEY_CONFLICT",
+                "message": "This Idempotency-Key was already used for a different request."
+            }})
+            return
+
         if created:
             try:
                 store.set_status(task["id"], "accepted", summary="Persisted by coordinator; dry-run pending.")
@@ -159,7 +171,7 @@ class Handler(BaseHTTPRequestHandler):
                 result = run_adapter(adapter, task)
                 task = store.set_status(task["id"], result["status"], summary=result["summary"])
                 store.add_event(task["id"], "adapter.result", result)
-            except (AdapterError, Exception) as exc:
+            except Exception as exc:
                 task = store.set_status(task["id"], "failed", summary="Dry-run adapter failed.", error_code=type(exc).__name__)
         self._json(201 if created else 200, {"accepted": True, "created": created, "task": task})
 
