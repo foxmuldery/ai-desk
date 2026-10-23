@@ -19,7 +19,7 @@
 - Dry-run adapter 白名单：只生成模拟结果，不执行 shell、Codex 或其他应用。
 - 手机优先的静态网页界面，可提交任务、查看列表和事件。
 - 本地启动脚本、环境示例、单元测试、HTTP 集成测试、GitHub Actions。
-- 安全默认：Coordinator 默认绑定 127.0.0.1；非 loopback 绑定需要 token。
+- 安全默认：Coordinator 默认绑定 127.0.0.1；非 loopback 绑定要求至少 32 字符 token + TLS 证书/私钥。
 
 ## 已验证的 CI 证据
 
@@ -30,6 +30,7 @@
 - 背景任务生命周期： [run 39956852474](https://github.com/foxmuldery/ai-desk/actions/runs/39956852474) — success。
 - Worker 异常保护： [run 39956923150](https://github.com/foxmuldery/ai-desk/actions/runs/39956923150) — success。
 - 安全响应头与非 loopback 强令牌限制： [run 39957059833](https://github.com/foxmuldery/ai-desk/actions/runs/39957059833) — success。
+- 非 loopback 缺少 TLS 时拒绝启动的守卫与测试：正在 CI 验证。
 - 任务事件审计轨迹测试： [run 39957078158](https://github.com/foxmuldery/ai-desk/actions/runs/39957078158) — success。
 
 注意：各条 CI 对应不同 commit；应以最新 commit 对应的 workflow 结果作为最终验收。
@@ -49,7 +50,7 @@
 1. 确认最新 CI 通过。
 2. 增加服务层状态机与异常路径测试。
 3. 在 Mac Studio 安全测试目录本地运行 dry-run。
-4. 为手机到 Mac 的 LAN 通信设计经过验证的 TLS/VPN 方案；不将明文 HTTP 直接暴露到整个 LAN。
+4. 配置并实测手机信任的 TLS 证书，验证 S22 Ultra 到 Mac 的 LAN 通信；不将明文 HTTP 直接暴露到整个 LAN。
 5. 在安全访问方案通过后，实测 S22 Ultra + Typeless。
 6. 实现受控 Codex adapter。
 7. 扩展多电脑执行代理。
