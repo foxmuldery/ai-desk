@@ -73,6 +73,28 @@
 - 在 S22 Ultra 上的真实设备验证记录（未测就明确标注未测）。
 - 更新本文件与 README 的阶段状态。
 
-## 当前状态
+## 当前状态（2026-10-23）
 
-本仓库目前完成的是设计与交接文档首轮提交，尚无可运行应用、尚无端到端测试、尚未验证真实设备兼容性。不要把文档规划描述为已经实现。
+已提交：
+- Python 标准库 HTTP Coordinator 骨架。
+- SQLite 任务存储、任务事件和幂等键。
+- 只允许 dry-run 的适配器注册表；不执行 shell/Codex 命令。
+- 手机优先的静态 Web UI，支持输入任务、token、提交、查看任务和事件。
+- 本地启动脚本、环境变量示例、单元测试。
+- GitHub Actions 测试工作流。
+- 研发 Issue： https://github.com/foxmuldery/ai-desk/issues/1
+
+尚未验证：
+- GitHub Actions 首轮运行已排队，但尚未开始/完成，不能声称测试通过。
+- 未在 Mac Studio 本机运行。
+- 未在 S22 Ultra 实机验证 Typeless、通知、TTS。
+- 当前 Web UI 默认只适用于 Coordinator 所在电脑的 loopback 地址，手机跨设备访问方案尚未完成。
+- 尚未实现真实 Codex adapter、多电脑 Agent、后台 Android 通知和安全的 LAN HTTPS。
+
+下一步：
+1. 取得 GitHub Actions 结果；修复所有失败。
+2. 做一次代码审查，补 HTTP API 集成测试和状态机约束。
+3. 在 Mac Studio 的安全测试目录运行 dry-run MVP。
+4. 在完成认证和安全传输设计后，再让 S22 Ultra 通过局域网访问。
+5. 通过实机测试后再实现真实 Codex adapter。
+
