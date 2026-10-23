@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import threading
+from contextlib import contextmanager
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -28,8 +29,17 @@ class TaskStore:
         conn.execute("PRAGMA foreign_keys=ON")
         return conn
 
+    @contextmanager
+    def _db(self):
+        conn = self._connect()
+        try:
+            with conn:
+                yield conn
+        finally:
+            conn.close()
+
     def _init_db(self) -> None:
-        with self._connect() as conn:
+        with self._db() as conn:
             conn.executescript("""
                 CREATE TABLE IF NOT EXISTS tasks (
                     id TEXT PRIMARY KEY,
@@ -59,7 +69,7 @@ class TaskStore:
         working_directory_id: str, idempotency_key: str
     ) -> tuple[dict[str, Any], bool]:
         now = utc_now()
-        with self._lock, self._connect() as conn:
+        with self._lock, self._db() as conn:
             existing = conn.execute(
                 "SELECT * FROM tasks WHERE idempotency_key = ?",
                 (idempotency_key,),
@@ -113,12 +123,12 @@ class TaskStore:
         if conn is not None:
             row = conn.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone()
             return dict(row) if row else {}
-        with self._connect() as db:
+        with self._db() as db:
             row = db.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone()
             return dict(row) if row else {}
 
     def list_tasks(self, limit: int = 50) -> list[dict[str, Any]]:
-        with self._connect() as conn:
+        with self._db() as conn:
             rows = conn.execute(
                 "SELECT * FROM tasks ORDER BY created_at DESC LIMIT ?", (limit,)
             ).fetchall()
