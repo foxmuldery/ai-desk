@@ -92,8 +92,13 @@ PYTHONPATH=server python3 -m compileall -q server tests
 
 当前 dry-run 是模拟执行，用于验证任务存储与 UI，不是 Codex 执行器。
 
+## 当前实现状态
+
+已具备单机 dry-run Coordinator、SQLite 任务记录、背景队列、幂等键保护、手机优先网页界面及测试。当前仍未接入真实 Codex，也未完成手机到 Mac 的安全 LAN 通信和 S22 Ultra 实机验证。请查看 [docs/DEV_STATUS.md](docs/DEV_STATUS.md) 获取逐项状态与 CI 证据。
+
 ## 文档索引
 
+- [当前开发状态与 CI 证据](docs/DEV_STATUS.md)
 - [系统架构](docs/ARCHITECTURE.md)
 - [研发路线与里程碑](docs/ROADMAP.md)
 - [API 草案](docs/API.md)
