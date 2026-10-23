@@ -110,6 +110,15 @@ class CoordinatorHTTPTests(unittest.TestCase):
         self.assertIsNotNone(final_task)
         self.assertEqual(final_task["status"], "succeeded")
         self.assertIn("Dry-run accepted task", final_task["summary"])
+        event_status, event_payload = self.request_json(
+            "/api/v1/tasks/" + task_id + "/events", token=self.token
+        )
+        self.assertEqual(event_status, 200)
+        event_types = [event["event_type"] for event in event_payload["events"]]
+        self.assertIn("task.queued", event_types)
+        self.assertIn("task.running", event_types)
+        self.assertIn("adapter.result", event_types)
+        self.assertIn("task.succeeded", event_types)
 
     def test_missing_token_is_rejected(self):
         status, payload = self.request_json("/api/v1/tasks")
