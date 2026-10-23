@@ -125,6 +125,26 @@ class CoordinatorHTTPTests(unittest.TestCase):
         self.assertEqual(status, 401)
         self.assertEqual(payload["error"]["code"], "UNAUTHENTICATED")
 
+    def test_non_loopback_bind_requires_tls(self):
+        env = os.environ.copy()
+        env["PYTHONPATH"] = str(REPO_ROOT / "server")
+        env["AI_DESK_BIND"] = "0.0.0.0"
+        env["AI_DESK_PORT"] = str(free_port())
+        env["AI_DESK_DB"] = str(Path(self.__class__.temp.name) / "tls-guard.sqlite3")
+        env["AI_DESK_TOKEN"] = "long-enough-test-token-1234567890"
+        env.pop("AI_DESK_TLS_CERT", None)
+        env.pop("AI_DESK_TLS_KEY", None)
+        result = subprocess.run(
+            [sys.executable, "-m", "ai_desk.server"],
+            cwd=REPO_ROOT,
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("without valid AI_DESK_TLS_CERT", result.stderr + result.stdout)
+
     def test_unknown_adapter_is_rejected(self):
         status, payload = self.request_json(
             "/api/v1/tasks",
