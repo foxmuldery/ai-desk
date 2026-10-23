@@ -4,8 +4,8 @@ from __future__ import annotations
 import json
 import sqlite3
 import threading
-from contextlib import contextmanager
 import uuid
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -13,6 +13,22 @@ from typing import Any
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+class InvalidTransition(ValueError):
+    """Raised when a task status transition is not allowed."""
+
+
+ALLOWED_TRANSITIONS = {
+    "queued": {"accepted", "cancelled", "failed"},
+    "accepted": {"running", "cancelled", "failed", "unknown"},
+    "running": {"needs_input", "succeeded", "failed", "cancelled", "unknown"},
+    "needs_input": {"running", "cancelled", "failed", "unknown"},
+    "unknown": {"running", "succeeded", "failed", "cancelled"},
+    "succeeded": set(),
+    "failed": set(),
+    "cancelled": set(),
+}
 
 
 class TaskStore:
@@ -99,7 +115,7 @@ class TaskStore:
         )
 
     def add_event(self, task_id: str, event_type: str, detail: dict[str, Any]) -> None:
-        with self._lock, self._connect() as conn:
+        with self._lock, self._db() as conn:
             if not conn.execute("SELECT 1 FROM tasks WHERE id = ?", (task_id,)).fetchone():
                 raise KeyError(task_id)
             self._event(conn, task_id, event_type, detail)
@@ -110,8 +126,18 @@ class TaskStore:
         with self._lock, self._connect() as conn:
             if not conn.execute("SELECT 1 FROM tasks WHERE id = ?", (task_id,)).fetchone():
                 raise KeyError(task_id)
+            current_row = conn.execute(
+                "SELECT status FROM tasks WHERE id = ?", (task_id,)
+            ).fetchone()
+            current_status = current_row["status"]
+            if status != current_status and status not in ALLOWED_TRANSITIONS.get(current_status, set()):
+                raise InvalidTransition(f"cannot transition task from {current_status} to {status}")
             conn.execute(
-                "UPDATE tasks SET status=?, updated_at=?, summary=?, error_code=? WHERE id=?",
+                """UPDATE tasks
+                   SET status=?, updated_at=?,
+                       summary=COALESCE(?, summary),
+                       error_code=COALESCE(?, error_code)
+                   WHERE id=?""",
                 (status, now, summary, error_code, task_id),
             )
             self._event(conn, task_id, "task." + status, {
@@ -135,7 +161,7 @@ class TaskStore:
             return [dict(row) for row in rows]
 
     def list_events(self, task_id: str) -> list[dict[str, Any]]:
-        with self._connect() as conn:
+        with self._db() as conn:
             rows = conn.execute(
                 "SELECT id, at, event_type, detail_json FROM task_events WHERE task_id=? ORDER BY id",
                 (task_id,),
