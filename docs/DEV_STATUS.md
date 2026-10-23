@@ -32,6 +32,8 @@
 - 安全响应头与非 loopback 强令牌限制： [run 39957059833](https://github.com/foxmuldery/ai-desk/actions/runs/39957059833) — success。
 - 非 loopback 缺少 TLS 时拒绝启动： [run 39957232995](https://github.com/foxmuldery/ai-desk/actions/runs/39957232995) — success。
 - 启动脚本区分 loopback HTTP 与 LAN HTTPS： [run 39957330535](https://github.com/foxmuldery/ai-desk/actions/runs/39957330535) — success。
+- 静态资源安全头与 CSP 集成测试： [run 39957569052](https://github.com/foxmuldery/ai-desk/actions/runs/39957569052) — success。
+- 前端 JavaScript 语法检查： [run 39957583178](https://github.com/foxmuldery/ai-desk/actions/runs/39957583178) — success。
 - 任务事件审计轨迹测试： [run 39957078158](https://github.com/foxmuldery/ai-desk/actions/runs/39957078158) — success。
 
 注意：各条 CI 对应不同 commit；应以最新 commit 对应的 workflow 结果作为最终验收。
@@ -39,7 +41,7 @@
 ## 当前限制
 
 - 未在 Mac Studio 本机运行。
-- 未在 S22 Ultra 实机验证 Typeless、通知、TTS。
+- 未在 S22 Ultra 实机验证 Typeless、通知、TTS；前台浏览器播报已写入代码，但真实浏览器自动播放策略仍需实测。
 - 手机与 Mac 的安全 LAN 通信尚未在真实设备上配置验证；UI/API 目前默认在本机 loopback 上验证。代码已要求 LAN 模式同时具备强 token 和 TLS 证书/私钥。
 - 未实现真实 Codex adapter。
 - 未实现多电脑 Agent 注册、心跳与任务分发。
