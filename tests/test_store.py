@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ai_desk.store import TaskStore
+from ai_desk.store import InvalidTransition, TaskStore
 
 
 class TaskStoreTests(unittest.TestCase):
@@ -38,9 +38,19 @@ class TaskStoreTests(unittest.TestCase):
 
     def test_status_transition_is_recorded(self):
         task, _ = self.create()
+        self.store.set_status(task["id"], "accepted")
+        self.store.set_status(task["id"], "running")
         updated = self.store.set_status(task["id"], "succeeded", summary="dry-run ok")
         self.assertEqual(updated["status"], "succeeded")
         self.assertEqual(self.store.list_events(task["id"])[-1]["event_type"], "task.succeeded")
+
+    def test_terminal_state_cannot_be_reopened(self):
+        task, _ = self.create("terminal")
+        self.store.set_status(task["id"], "accepted")
+        self.store.set_status(task["id"], "running")
+        self.store.set_status(task["id"], "succeeded", summary="done")
+        with self.assertRaises(InvalidTransition):
+            self.store.set_status(task["id"], "running")
 
 
 if __name__ == "__main__":
