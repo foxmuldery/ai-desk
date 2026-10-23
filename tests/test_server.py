@@ -120,6 +120,16 @@ class CoordinatorHTTPTests(unittest.TestCase):
         self.assertIn("adapter.result", event_types)
         self.assertIn("task.succeeded", event_types)
 
+    def test_static_assets_have_security_headers(self):
+        with urlopen(self.base + "/app.js", timeout=3) as response:
+            self.assertEqual(response.status, 200)
+            self.assertIn("javascript", response.headers.get("Content-Type", ""))
+            self.assertEqual(response.headers.get("X-Content-Type-Options"), "nosniff")
+            self.assertIn("script-src 'self'", response.headers.get("Content-Security-Policy", ""))
+        with urlopen(self.base + "/styles.css", timeout=3) as response:
+            self.assertEqual(response.status, 200)
+            self.assertIn("text/css", response.headers.get("Content-Type", ""))
+
     def test_missing_token_is_rejected(self):
         status, payload = self.request_json("/api/v1/tasks")
         self.assertEqual(status, 401)
