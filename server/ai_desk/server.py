@@ -3,7 +3,10 @@ from __future__ import annotations
 
 import json
 import os
+import queue
 import secrets
+import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs
@@ -18,6 +21,50 @@ BIND = os.environ.get("AI_DESK_BIND", "127.0.0.1")
 PORT = int(os.environ.get("AI_DESK_PORT", "8765"))
 TOKEN = os.environ.get("AI_DESK_TOKEN", "")
 store = TaskStore(DB_PATH)
+task_queue: queue.Queue[str] = queue.Queue()
+
+
+def process_task(task_id: str) -> None:
+    """Run one registered adapter outside the request thread."""
+    task = store.get_task(task_id)
+    if not task or task["status"] != "queued":
+        return
+    try:
+        task = store.set_status(task_id, "accepted", summary="Persisted by coordinator; waiting for worker.")
+        task = store.set_status(task_id, "running", summary="Dry-run adapter is running.")
+        result = run_adapter(task["adapter"], task)
+        store.add_event(task_id, "adapter.result", result)
+        store.set_status(task_id, result["status"], summary=result["summary"])
+    except Exception as exc:
+        current = store.get_task(task_id)
+        if current and current["status"] in ("queued", "accepted", "running", "needs_input", "unknown"):
+            store.set_status(
+                task_id, "failed", summary="Task adapter failed.",
+                error_code=type(exc).__name__,
+            )
+            store.add_event(task_id, "task.exception", {"type": type(exc).__name__})
+
+
+def worker_loop() -> None:
+    while True:
+        task_id = task_queue.get()
+        try:
+            process_task(task_id)
+        finally:
+            task_queue.task_done()
+
+
+def recover_tasks() -> None:
+    # Queued work is safe to enqueue again. In-flight work cannot be assumed safe to replay.
+    for task in store.list_tasks(limit=1000):
+        if task["status"] in ("accepted", "running"):
+            store.set_status(
+                task["id"], "unknown",
+                summary="Coordinator restarted while task was in flight; reconciliation required.",
+                error_code="COORDINATOR_RESTART",
+            )
+        elif task["status"] == "queued":
+            task_queue.put(task["id"])
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -165,14 +212,7 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if created:
-            try:
-                store.set_status(task["id"], "accepted", summary="Persisted by coordinator; dry-run pending.")
-                task = store.set_status(task["id"], "running", summary="Running dry-run adapter.")
-                result = run_adapter(adapter, task)
-                task = store.set_status(task["id"], result["status"], summary=result["summary"])
-                store.add_event(task["id"], "adapter.result", result)
-            except Exception as exc:
-                task = store.set_status(task["id"], "failed", summary="Dry-run adapter failed.", error_code=type(exc).__name__)
+            task_queue.put(task["id"])
         self._json(201 if created else 200, {"accepted": True, "created": created, "task": task})
 
     def do_OPTIONS(self) -> None:
@@ -185,6 +225,9 @@ class Handler(BaseHTTPRequestHandler):
 def main() -> None:
     if BIND not in ("127.0.0.1", "localhost", "::1") and not TOKEN:
         raise SystemExit("Refusing non-loopback bind without AI_DESK_TOKEN.")
+    recover_tasks()
+    worker = threading.Thread(target=worker_loop, name="ai-desk-worker", daemon=True)
+    worker.start()
     server = ThreadingHTTPServer((BIND, PORT), Handler)
     print(f"AI Desk dry-run coordinator listening on http://{BIND}:{PORT}")
     print(f"Database: {DB_PATH}")
