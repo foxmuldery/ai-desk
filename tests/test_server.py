@@ -94,8 +94,22 @@ class CoordinatorHTTPTests(unittest.TestCase):
         )
         self.assertEqual(status, 201)
         self.assertTrue(payload["accepted"])
-        self.assertEqual(payload["task"]["status"], "succeeded")
-        self.assertIn("Dry-run accepted task", payload["task"]["summary"])
+        self.assertEqual(payload["task"]["status"], "queued")
+        task_id = payload["task"]["id"]
+        deadline = time.time() + 3
+        final_task = None
+        while time.time() < deadline:
+            task_status, current = self.request_json(
+                "/api/v1/tasks/" + task_id, token=self.token
+            )
+            self.assertEqual(task_status, 200)
+            final_task = current["task"]
+            if final_task["status"] in ("succeeded", "failed"):
+                break
+            time.sleep(0.02)
+        self.assertIsNotNone(final_task)
+        self.assertEqual(final_task["status"], "succeeded")
+        self.assertIn("Dry-run accepted task", final_task["summary"])
 
     def test_missing_token_is_rejected(self):
         status, payload = self.request_json("/api/v1/tasks")
