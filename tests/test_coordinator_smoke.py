@@ -42,7 +42,6 @@ class CoordinatorSmokeTests(unittest.TestCase):
         (self.lab / "README.md").write_text("Harmless test lab\n", encoding="utf-8")
         subprocess.run(["git", "-C", str(self.lab), "init", "-q"], check=True)
         self.fake_cli = self.base / "codex"
-        self.fake_cli.chmod(0o700)
 
     def tearDown(self):
         self.temp.cleanup()
