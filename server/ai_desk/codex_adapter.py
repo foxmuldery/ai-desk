@@ -108,11 +108,13 @@ def run_codex_readonly(task: dict[str, Any]) -> dict[str, Any]:
         stderr_file = artifacts / "stderr.txt"
         argv = [
             binary,
+            # --ask-for-approval is a TOP-LEVEL Codex flag for CLI 0.144.5.
+            # Placing it after "exec" exits 2 (argument parsing error).
+            "--ask-for-approval", "never",
             "exec",
             "--ignore-user-config",
             "--ephemeral",
             "--sandbox", "read-only",
-            "--ask-for-approval", "never",
             "--json",
             "--cd", str(workspace),
             "--output-last-message", str(output_file),
