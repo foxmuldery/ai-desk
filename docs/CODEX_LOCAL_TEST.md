@@ -49,6 +49,24 @@ sh scripts/check-codex.sh
 
 脚本只读取 CLI 版本、登录状态、帮助信息和测试目录状态；不会执行 AI 任务。不要分享任何认证数据。
 
+## 下一项：真实 Codex CLI 只读烟雾测试（现在即可执行）
+
+帮助菜单可正常显示后，先不要启动 AI Desk 服务。请在 Mac Studio 上使用独立目录克隆草稿 PR 的功能分支：
+
+```sh
+git clone --single-branch --branch feat/codex-readonly-adapter \
+  https://github.com/foxmuldery/ai-desk.git "$HOME/AI-Desk-CLI-Test"
+cd "$HOME/AI-Desk-CLI-Test"
+sh scripts/check-codex.sh
+sh scripts/smoke-codex-readonly.sh
+```
+
+**只需回传结果标志**：`PREFLIGHT_OK`、`SMOKE_OK`、`SMOKE_FAIL`、`CODEX_EXIT_...` 或 `PREFLIGHT_FAIL`。不要发送原始 Codex JSONL、错误日志、凭据、token 或个人文件内容。脚本执行完后会清理保存在临时目录的事件与输出，仅向终端显示脱敏状态。
+
+这个 smoke test 会对`$HOME/AI-Desk-Sandbox`中的无敏感信息 README 运行一次真实 Codex，只读沙箱禁止对工作区写入，脚本还会比较 README 的 SHA-256 和 Git 状态。它需要 Codex 当前登录态可联网，可能使用模型额度。测试程序不会将你的既有影视、游戏工作目录设为工作区。
+
+如果`$HOME/AI-Desk-CLI-Test`已经存在，请勿覆盖已有文件；改用不同的空目录或在现有克隆中检查分支后再运行。
+
 ## 合并此功能分支后的本机启动方法
 
 以下指令仅用于 Mac Studio 本机，不要发送任何令牌或真实目录路径到公开 GitHub：
