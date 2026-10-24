@@ -101,3 +101,12 @@
 4. 在完成认证和安全传输设计后，再让 S22 Ultra 通过局域网访问。
 5. 按 docs/CODEX_LOCAL_TEST.md 实机验收已经受控的只读 Codex 适配器；通过后才规划写入权限和审批功能。
 
+
+## 并行开发工作线（2026-10-24）
+
+- [PR #2：Codex CLI 只读适配器](https://github.com/foxmuldery/ai-desk/pull/2)：代码与假 CLI 测试已经提交，**仍是 Draft，尚未合并主分支**。
+- [Issue #3：Mac Studio 实机 smoke test](https://github.com/foxmuldery/ai-desk/issues/3)：需要 Mac Studio 本机执行 `docs/CODEX_LOCAL_TEST.md`。
+- [Issue #4：S22 Ultra 安全 LAN 与 Typeless](https://github.com/foxmuldery/ai-desk/issues/4)：只准先用 dry-run，暂不远程执行真实 Codex。
+- [Issue #5：Codex 适配器独立安全审查](https://github.com/foxmuldery/ai-desk/issues/5)：评估 sandbox、认证、环境、超时、输出、崩溃恢复。
+
+如由 Work 或另一个 Codex Agent 接手，请先阅读目标任务的范围和安全边界，再对分支实际运行测试。不要声称已启动子代理；当前只是准备好可独立领取的任务。
