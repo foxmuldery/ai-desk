@@ -119,6 +119,15 @@ def run_codex_readonly(task: dict[str, Any]) -> dict[str, Any]:
             "-",
         ]
 
+        # Important: do not pass the coordinator bearer token, TLS paths,
+        # unrelated provider keys or other AI Desk settings to child tools.
+        # ChatGPT CLI sign-in is read from the authenticated macOS user's HOME.
+        permitted_env = (
+            "PATH", "HOME", "USER", "LOGNAME", "LANG", "LC_ALL",
+            "LC_CTYPE", "TMPDIR", "SHELL", "CODEX_HOME",
+        )
+        child_env = {name: os.environ[name] for name in permitted_env if name in os.environ}
+
         try:
             with stdout_file.open("wb") as out, stderr_file.open("wb") as err:
                 process = subprocess.Popen(
@@ -127,6 +136,7 @@ def run_codex_readonly(task: dict[str, Any]) -> dict[str, Any]:
                     stdin=subprocess.PIPE,
                     stdout=out,
                     stderr=err,
+                    env=child_env,
                     shell=False,
                     start_new_session=True,
                 )
