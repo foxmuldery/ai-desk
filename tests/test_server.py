@@ -176,6 +176,25 @@ class CoordinatorHTTPTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual([item["id"] for item in payload["adapters"]], ["dry-run"])
 
+    def test_codex_feature_refuses_non_loopback_startup(self):
+        env = os.environ.copy()
+        env["PYTHONPATH"] = str(REPO_ROOT / "server")
+        env["AI_DESK_BIND"] = "0.0.0.0"
+        env["AI_DESK_PORT"] = str(free_port())
+        env["AI_DESK_DB"] = str(Path(self.__class__.temp.name) / "codex-lan-guard.sqlite3")
+        env["AI_DESK_TOKEN"] = "local-readonly-test-strong-secret-123456"
+        env["AI_DESK_ENABLE_CODEX_READONLY"] = "1"
+        result = subprocess.run(
+            [sys.executable, "-m", "ai_desk.server"],
+            cwd=REPO_ROOT,
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("not enabled for LAN clients", result.stdout + result.stderr)
+
     def test_unknown_adapter_is_rejected(self):
         status, payload = self.request_json(
             "/api/v1/tasks",
