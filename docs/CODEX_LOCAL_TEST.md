@@ -67,6 +67,31 @@ sh scripts/smoke-codex-readonly.sh
 
 如果`$HOME/AI-Desk-CLI-Test`已经存在，请勿覆盖已有文件；改用不同的空目录或在现有克隆中检查分支后再运行。
 
+## Mac Studio：AI Desk Coordinator → 真实 Codex 本地闭环（CLI smoke 成功后）
+
+在已经获得 `SMOKE_OK`、`CODEX_TURN_COMPLETED`、`GIT_UNCHANGED` 后，可以验证调度层，而不是重复直接调用 CLI。
+
+下述命令**仅在 Mac Studio 本机终端**执行，使用已经存在的功能分支克隆，无需 API Key：
+
+```sh
+cd "$HOME/AI-Desk-CLI-Test"
+git pull --ff-only
+python3 scripts/smoke-coordinator-codex.py
+```
+
+该脚本会：
+
+1. 检查仅包含无敏感内容的 `$HOME/AI-Desk-Sandbox` Git 测试仓库；
+2. 创建一个临时数据库和随机访问令牌，只在 `127.0.0.1` 启动 Coordinator；
+3. 通过需要令牌的 HTTP API 查询 `codex-readonly` 能力，并提交一条读取 README 的测试任务；
+4. 由 Coordinator 后台队列调用受控的 `codex-readonly` 适配器，通过现有 ChatGPT 登录完成非交互回合；
+5. 轮询最终任务状态并检查 `adapter.result` 审计事件；
+6. 停止临时 Coordinator、清理临时数据，复核 README 的 SHA-256 和 Git 状态没有变化。
+
+成功时只显示 `GIT_UNCHANGED` 和 `COORDINATOR_SMOKE_OK`。失败时显示 `COORDINATOR_SMOKE_FAIL: <错误代码>`。它不会打印任务原文、模型输出或认证令牌；不要发送本机绝对路径、密钥和原始 stderr。
+
+**这是 Mac Studio 的本机 loopback 测试，不是手机端远程执行许可。** 尚未验收前，PR 保持草稿，不会开放局域网 Codex 访问。
+
 ## 合并此功能分支后的本机启动方法
 
 以下指令仅用于 Mac Studio 本机，不要发送任何令牌或真实目录路径到公开 GitHub：
