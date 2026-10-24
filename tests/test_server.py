@@ -155,6 +155,27 @@ class CoordinatorHTTPTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("without valid AI_DESK_TLS_CERT", result.stderr + result.stdout)
 
+    def test_codex_is_disabled_by_default(self):
+        status, payload = self.request_json(
+            "/api/v1/tasks",
+            method="POST",
+            token=self.token,
+            idem="no-codex-by-default",
+            body={
+                "instruction": "Inspect the sandbox",
+                "target_device_id": "mac-studio",
+                "adapter": "codex-readonly",
+                "working_directory_id": "codex-lab",
+            },
+        )
+        self.assertEqual(status, 403)
+        self.assertEqual(payload["error"]["code"], "CODEX_READONLY_DISABLED")
+
+    def test_capabilities_default_to_dry_run(self):
+        status, payload = self.request_json("/api/v1/capabilities", token=self.token)
+        self.assertEqual(status, 200)
+        self.assertEqual([item["id"] for item in payload["adapters"]], ["dry-run"])
+
     def test_unknown_adapter_is_rejected(self):
         status, payload = self.request_json(
             "/api/v1/tasks",
