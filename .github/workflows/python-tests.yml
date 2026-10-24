@@ -25,4 +25,4 @@ jobs:
       - name: Check frontend JavaScript syntax
         run: node --check web/app.js
       - name: Check safe shell script syntax
-        run: sh -n scripts/run-local.sh scripts/check-codex.sh
+        run: sh -n scripts/run-local.sh scripts/check-codex.sh scripts/smoke-codex-readonly.sh
