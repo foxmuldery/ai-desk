@@ -73,7 +73,7 @@
 - 在 S22 Ultra 上的真实设备验证记录（未测就明确标注未测）。
 - 更新本文件与 README 的阶段状态。
 
-## 当前状态（2026-10-23）
+## 当前状态（2026-10-24）
 
 已提交：
 - Python 标准库 HTTP Coordinator。
@@ -92,12 +92,12 @@
 - 未在 Mac Studio 本机运行。
 - 未在 S22 Ultra 实机验证 Typeless、通知、TTS。
 - 当前 Web UI 默认只适用于 Coordinator 所在电脑的 loopback 地址。代码已要求非 loopback 绑定必须有强 token 与 TLS 证书/私钥，但手机信任证书及跨设备访问尚未实测。
-- 尚未实现真实 Codex adapter、多电脑 Agent、后台 Android 通知和安全的 LAN HTTPS。
+- 已在独立分支开发只读 Codex CLI 适配器：需 Mac Studio 实机 CLI 参数和 ChatGPT 登录态验收，默认关闭且拒绝来自 LAN 的真实 Codex 调用。多电脑 Agent、后台 Android 通知和安全 LAN 手机连接尚未完成。
 
 下一步：
 1. 确认最新 GitHub Actions 运行通过；历史失败提交已被后续测试修复。
 2. 继续代码审查，补异常路径、重启恢复和 API 状态测试。
 3. 在 Mac Studio 的安全测试目录运行 dry-run MVP。
 4. 在完成认证和安全传输设计后，再让 S22 Ultra 通过局域网访问。
-5. 通过实机测试后再实现真实 Codex adapter。
+5. 按 docs/CODEX_LOCAL_TEST.md 实机验收已经受控的只读 Codex 适配器；通过后才规划写入权限和审批功能。
 
