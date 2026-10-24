@@ -26,6 +26,15 @@ for flag in '--sandbox' '--ask-for-approval' '--json' '--output-last-message' '-
     fi
 done
 
+# Check the *full command structure* without starting an AI task.
+# Checking global help and exec help separately does not validate flag placement.
+if codex --ask-for-approval never exec --help >/dev/null 2>&1; then
+    printf '%s\n' 'OK: global approval flag before exec is accepted.'
+else
+    printf '%s\n' 'FAIL: Codex CLI rejected the expected approval/exec flag order.'
+    missing=1
+fi
+
 root="${AI_DESK_CODEX_READONLY_ROOT:-$HOME/AI-Desk-Sandbox}"
 if [ -d "$root" ] && [ -e "$root/.git" ]; then
     printf '%s\n' 'OK: the configured lab Git repository exists.'
