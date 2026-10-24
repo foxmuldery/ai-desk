@@ -39,8 +39,15 @@ printf "AI Desk independent read-only test repository.\n" > README.md
 codex exec --help
 ```
 
-该步骤只在新建的测试目录内创建文件，`codex exec --help` 只打印帮助信息，不会启动推理任务。
-检查帮助中是否包含 `--sandbox`、`--json`、`--output-last-message`、`--ignore-user-config`、`--ephemeral`。如果版本不支持某个参数，先反馈帮助信息，不要为了测试强行修改 Codex 配置或升级。
+这些命令不会启动推理任务。检查帮助中是否包含 `--sandbox`、`--json`、`--output-last-message`、`--ignore-user-config`、`--ephemeral`。如果版本不支持某个参数，先反馈帮助信息，不要为了测试强行修改 Codex 配置或升级。
+
+克隆仓库后，还可以用项目提供的无副作用预检脚本一次检查这些条件：
+
+```sh
+sh scripts/check-codex.sh
+```
+
+脚本只读取 CLI 版本、登录状态、帮助信息和测试目录状态；不会执行 AI 任务。不要分享任何认证数据。
 
 ## 合并此功能分支后的本机启动方法
 
