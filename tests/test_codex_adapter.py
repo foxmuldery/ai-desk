@@ -23,21 +23,22 @@ import pathlib
 import sys
 
 args = sys.argv[1:]
-if os.environ.get("FAKE_CODEX_CAPTURE"):
-    pathlib.Path(os.environ["FAKE_CODEX_CAPTURE"]).write_text(
-        json.dumps({"args": args, "prompt": sys.stdin.read()}),
-        encoding="utf-8",
-    )
-else:
-    sys.stdin.read()
-
+prompt = sys.stdin.read()
+pathlib.Path(__CAPTURE_PATH__).write_text(
+    json.dumps({
+        "args": args,
+        "prompt": prompt,
+        "coordinator_token_visible": "AI_DESK_TOKEN" in os.environ,
+        "provider_key_visible": "OPENAI_API_KEY" in os.environ,
+    }),
+    encoding="utf-8",
+)
 if "--output-last-message" not in args:
     sys.exit(2)
 outpath = pathlib.Path(args[args.index("--output-last-message") + 1])
 outpath.write_text("检查完成，没有修改任何文件。", encoding="utf-8")
-event_type = os.environ.get("FAKE_CODEX_EVENT", "turn.completed")
-print(json.dumps({"type": event_type}), flush=True)
-sys.exit(int(os.environ.get("FAKE_CODEX_EXIT", "0")))
+print(json.dumps({"type": __EVENT_TYPE__}), flush=True)
+sys.exit(__EXIT_CODE__)
 '''
 
 
@@ -49,17 +50,26 @@ class CodexReadOnlyAdapterTests(unittest.TestCase):
         self.workspace.mkdir()
         (self.workspace / ".git").mkdir()
         self.fake_cli = self.root / "codex"
-        self.fake_cli.write_text(FAKE_CLI, encoding="utf-8")
-        self.fake_cli.chmod(0o700)
         self.capture = self.root / "capture.json"
+        self._write_cli()
         self.original_env = patch.dict(os.environ, {
             "AI_DESK_ENABLE_CODEX_READONLY": "1",
             "AI_DESK_CODEX_READONLY_ROOT": str(self.workspace),
             "AI_DESK_CODEX_BIN": str(self.fake_cli),
             "AI_DESK_CODEX_TIMEOUT": "30",
-            "FAKE_CODEX_CAPTURE": str(self.capture),
+            "AI_DESK_TOKEN": "must-not-inherit-this-secret",
+            "OPENAI_API_KEY": "must-not-inherit-provider-secret",
         })
         self.original_env.start()
+
+    def _write_cli(self, *, event="turn.completed", exit_code=0):
+        self.fake_cli.write_text(
+            FAKE_CLI.replace("__CAPTURE_PATH__", repr(str(self.capture)))
+                    .replace("__EVENT_TYPE__", repr(event))
+                    .replace("__EXIT_CODE__", str(exit_code)),
+            encoding="utf-8",
+        )
+        self.fake_cli.chmod(0o700)
 
     def tearDown(self):
         self.original_env.stop()
@@ -101,16 +111,18 @@ class CodexReadOnlyAdapterTests(unittest.TestCase):
         self.assertEqual(args[-1], "-")
         self.assertIn("请检查测试仓库有哪些文件。", capture["prompt"])
         self.assertNotIn("请检查测试仓库有哪些文件。", args)
+        self.assertFalse(capture["coordinator_token_visible"])
+        self.assertFalse(capture["provider_key_visible"])
 
     def test_nonzero_cli_exit_is_failure(self):
-        with patch.dict(os.environ, {"FAKE_CODEX_EXIT": "1"}):
-            result = run_codex_readonly(self.task())
+        self._write_cli(exit_code=1)
+        result = run_codex_readonly(self.task())
         self.assertEqual(result["status"], "failed")
         self.assertEqual(result["error_code"], "CODEX_EXIT_NONZERO")
 
     def test_turn_failure_is_not_success_even_with_exit_zero(self):
-        with patch.dict(os.environ, {"FAKE_CODEX_EVENT": "turn.failed"}):
-            result = run_codex_readonly(self.task())
+        self._write_cli(event="turn.failed")
+        result = run_codex_readonly(self.task())
         self.assertEqual(result["status"], "failed")
         self.assertEqual(result["error_code"], "CODEX_TURN_FAILED")
 
