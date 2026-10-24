@@ -89,6 +89,33 @@ sh scripts/run-local.sh
 - 成功时查看任务事件和简短总结，并检查仓库文件保持未修改。
 - 运行环境/模型认证失败时不要重复提交大量任务，先记录脱敏错误类别。
 
+## CLI 0.144.5 参数顺序修复（2026-10-24）
+
+首次 Mac Studio smoke 结果：
+
+- `PREFLIGHT_OK`：CLI、ChatGPT 登录及测试目录通过。
+- `GIT_UNCHANGED`：测试目录未发现变化。
+- `SMOKE_FAIL: CODEX_EXIT_2`：CLI 进程以状态 2 退出，尚未完成真实 Codex 回合。
+
+已核对到 Codex CLI 的一个参数兼容问题：`--ask-for-approval never` 是**全局参数**，必须放在 `exec` 前面。错误组合 `codex exec --ask-for-approval never` 会被部分版本以退出码 2 拒绝。
+
+- 错误示例：`codex exec --ask-for-approval never --sandbox read-only ...`
+- 修正形式：`codex --ask-for-approval never exec --sandbox read-only ...`
+- 参照官方仓库问题： https://github.com/openai/codex/issues/26602
+
+已同步修正正式适配器和 smoke 脚本；预检现在会检查整个 `codex --ask-for-approval never exec --help` 的组合语法，而不仅仅检查各个参数是否在帮助中出现。
+
+已克隆当前功能分支的 Mac Studio 用户不必重复 `git clone`。待 CI 全绿后：
+
+```sh
+cd "$HOME/AI-Desk-CLI-Test"
+git pull --ff-only
+sh scripts/check-codex.sh
+sh scripts/smoke-codex-readonly.sh
+```
+
+如再次失败，只汇报输出的脱敏结果码（例如 `CODEX_ARGUMENT_PARSE_ERROR`、`CODEX_AUTH_ERROR`、`CODEX_EXIT_N`）。无需上传 stderr、Codex 认证内容或原始 JSONL。
+
 ## 实机验收
 
 - [ ] `codex exec --help` 显示所需参数（0.144.5 本机确认）。
