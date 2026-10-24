@@ -25,7 +25,9 @@ mode = os.environ.get("FAKE_MODE", "success")
 if mode == "exit":
     sys.exit(7)
 if mode == "modify":
-    Path.cwd().joinpath("README.md").write_text("Modified!", encoding="utf-8")
+    # Emulate Codex's --cd behavior, rather than writing in the test runner cwd.
+    workspace = Path(args[args.index("--cd") + 1])
+    workspace.joinpath("README.md").write_text("Modified!", encoding="utf-8")
 out_path = Path(args[args.index("--output-last-message") + 1])
 out_path.write_text("仅用于测试的中文总结。", encoding="utf-8")
 print(json.dumps({"type": "turn.failed" if mode == "failed-event" else "turn.completed"}))
