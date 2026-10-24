@@ -34,11 +34,10 @@ printf '%s\n' 'SMOKE_START: Codex read-only inspection of isolated test README.'
 printf '%s\n' 'This calls the logged-in Codex service once; no project edits are authorized.'
 
 if printf '%s\n' '只阅读当前测试 Git 仓库中的 README.md，写一句简短中文总结。不要创建、删除或修改文件，不要访问其他目录，不要执行部署，也不要输出任何密钥或用户个人信息。' |
-    codex exec \
+    codex --ask-for-approval never exec \
         --ignore-user-config \
         --ephemeral \
         --sandbox read-only \
-        --ask-for-approval never \
         --json \
         --cd "$ROOT" \
         --output-last-message "$tmp/final.txt" \
@@ -59,7 +58,14 @@ fi
 printf '%s\n' 'GIT_UNCHANGED'
 
 if [ "$cli_exit" -ne 0 ]; then
-    printf 'SMOKE_FAIL: CODEX_EXIT_%s (inspect CLI/network locally; never post credentials)\n' "$cli_exit"
+    # Classify known failures without printing arbitrary stderr, prompts or secrets.
+    if grep -Eiq 'unexpected argument|unknown argument|unrecognized option|invalid value' "$tmp/stderr.log"; then
+        printf '%s\n' 'SMOKE_FAIL: CODEX_ARGUMENT_PARSE_ERROR'
+    elif grep -Eiq 'not logged in|login required|authentication failed|unauthorized' "$tmp/stderr.log"; then
+        printf '%s\n' 'SMOKE_FAIL: CODEX_AUTH_ERROR'
+    else
+        printf 'SMOKE_FAIL: CODEX_EXIT_%s (inspect CLI/network locally; never post credentials)\n' "$cli_exit"
+    fi
     exit 1
 fi
 
