@@ -57,3 +57,17 @@
 5. 在安全访问方案通过后，实测 S22 Ultra + Typeless。
 6. 按 docs/CODEX_LOCAL_TEST.md 实测并验收受控 Codex CLI 只读适配器。
 7. 扩展多电脑执行代理。
+
+## 2026-10-24：受控 Codex CLI 只读适配器（独立草稿 PR）
+
+- 开发分支：`feat/codex-readonly-adapter`
+- 草稿 PR：[PR #2](https://github.com/foxmuldery/ai-desk/pull/2)
+- 最新分支 CI：[GitHub Actions](https://github.com/foxmuldery/ai-desk/actions/runs/40071724759) — 24 项自动化测试通过；Python 编译、前端语法、Shell 语法检查通过。
+- 已实现并默认关闭：`codex-readonly` 适配器、`codex-lab` Git 测试目录白名单、本地非交互 Codex CLI 调用、JSONL 结束事件验收、执行超时与失败反馈。
+- 安全边界：只在 loopback 可用；非 loopback + Codex 同时启用时拒绝启动；隔离传给 Codex 子进程的环境变量，避免继承 AI Desk bearer token。
+- 测试使用隔离假 CLI，无需 ChatGPT 认证或网络；这不代表真实 Codex 在 Mac Studio 已执行成功。
+- Mac Studio 实机验证：[Issue #3](https://github.com/foxmuldery/ai-desk/issues/3)
+- S22 Ultra + Typeless 安全连接：[Issue #4](https://github.com/foxmuldery/ai-desk/issues/4)
+- 独立安全复核：[Issue #5](https://github.com/foxmuldery/ai-desk/issues/5)
+
+**尚未完成**：在目标 Mac Studio 上验证用户报告的 `codex-cli 0.144.5` 对参数的实际支持、复用 ChatGPT 登录、真实只读命令和结果；手机到 Mac 的真实执行链路仍未开放。
