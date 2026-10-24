@@ -71,3 +71,11 @@
 - 独立安全复核：[Issue #5](https://github.com/foxmuldery/ai-desk/issues/5)
 
 **尚未完成**：在目标 Mac Studio 上验证用户报告的 `codex-cli 0.144.5` 对参数的实际支持、复用 ChatGPT 登录、真实只读命令和结果；手机到 Mac 的真实执行链路仍未开放。
+
+## 2026-10-24：只读实机烟雾测试脚本
+
+- 新增 `scripts/smoke-codex-readonly.sh`：仅针对 `$HOME/AI-Desk-Sandbox` 独立 Git 测试仓库调用一次真实 Codex CLI。
+- 执行时显示脱敏状态；同时校验零退出码、`turn.completed` 事件、非空最终回复，以及前后 Git 状态与 README 校验值不变。
+- 额外假 CLI 测试覆盖成功、非零退出、缺少完成事件和测试文件被修改。
+- 最新执行：[GitHub Actions 40073339517](https://github.com/foxmuldery/ai-desk/actions/runs/40073339517) — **28 项测试通过**，包括 Python 编译、JavaScript 与 shell 语法检查。
+- 真实 Mac Studio 尚未运行此脚本；需按 `docs/CODEX_LOCAL_TEST.md` 操作，并只回传 `PREFLIGHT_OK / SMOKE_OK / SMOKE_FAIL` 脱敏状态。
