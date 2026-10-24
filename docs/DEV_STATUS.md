@@ -1,6 +1,6 @@
 # 开发状态记录
 
-更新日期：2026-10-23
+更新日期：2026-10-24
 
 ## 当前版本
 
@@ -43,7 +43,7 @@
 - 未在 Mac Studio 本机运行。
 - 未在 S22 Ultra 实机验证 Typeless、通知、TTS；前台浏览器播报已写入代码，但真实浏览器自动播放策略仍需实测。
 - 手机与 Mac 的安全 LAN 通信尚未在真实设备上配置验证；UI/API 目前默认在本机 loopback 上验证。代码已要求 LAN 模式同时具备强 token 和 TLS 证书/私钥。
-- 未实现真实 Codex adapter。
+- 只读 Codex CLI 适配器已在独立分支编码，默认关闭、仅本机可用；假 CLI 测试和 Mac Studio 实机测试尚待完成，不能称为真实任务已成功运行。
 - 未实现多电脑 Agent 注册、心跳与任务分发。
 - 未实现 Android 后台可靠通知或原生应用。
 - 尚未完成全面安全审查。
@@ -55,5 +55,5 @@
 3. 在 Mac Studio 安全测试目录本地运行 dry-run。
 4. 配置并实测手机信任的 TLS 证书，验证 S22 Ultra 到 Mac 的 LAN 通信；不将明文 HTTP 直接暴露到整个 LAN。
 5. 在安全访问方案通过后，实测 S22 Ultra + Typeless。
-6. 实现受控 Codex adapter。
+6. 按 docs/CODEX_LOCAL_TEST.md 实测并验收受控 Codex CLI 只读适配器。
 7. 扩展多电脑执行代理。
