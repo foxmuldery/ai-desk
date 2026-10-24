@@ -41,6 +41,14 @@
 
 终态：succeeded、failed、cancelled。unknown 不是成功或失败的替代品。
 
+## 已登记适配器发现
+
+`GET /api/v1/capabilities`（需要用户令牌）
+
+默认只返回 `dry-run`、目录 ID `demo`。当且仅当 Mac 本机 loopback、`AI_DESK_ENABLE_CODEX_READONLY=1` 且服务端配置了有效 Git 测试目录时，才返回 `codex-readonly`、目录 ID `codex-lab`。
+
+服务端绝不把绝对目录路径传给移动界面。阶段一不允许外部 LAN 客户端调用真实 Codex 适配器。
+
 ## 手机端接口
 
 ### 创建任务

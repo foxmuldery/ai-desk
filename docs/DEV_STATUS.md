@@ -1,6 +1,6 @@
 # 开发状态记录
 
-更新日期：2026-10-23
+更新日期：2026-10-24
 
 ## 当前版本
 
@@ -43,7 +43,7 @@
 - 未在 Mac Studio 本机运行。
 - 未在 S22 Ultra 实机验证 Typeless、通知、TTS；前台浏览器播报已写入代码，但真实浏览器自动播放策略仍需实测。
 - 手机与 Mac 的安全 LAN 通信尚未在真实设备上配置验证；UI/API 目前默认在本机 loopback 上验证。代码已要求 LAN 模式同时具备强 token 和 TLS 证书/私钥。
-- 未实现真实 Codex adapter。
+- 只读 Codex CLI 适配器已在独立分支编码，默认关闭、仅本机可用；假 CLI 测试和 Mac Studio 实机测试尚待完成，不能称为真实任务已成功运行。
 - 未实现多电脑 Agent 注册、心跳与任务分发。
 - 未实现 Android 后台可靠通知或原生应用。
 - 尚未完成全面安全审查。
@@ -55,5 +55,48 @@
 3. 在 Mac Studio 安全测试目录本地运行 dry-run。
 4. 配置并实测手机信任的 TLS 证书，验证 S22 Ultra 到 Mac 的 LAN 通信；不将明文 HTTP 直接暴露到整个 LAN。
 5. 在安全访问方案通过后，实测 S22 Ultra + Typeless。
-6. 实现受控 Codex adapter。
+6. 按 docs/CODEX_LOCAL_TEST.md 实测并验收受控 Codex CLI 只读适配器。
 7. 扩展多电脑执行代理。
+
+## 2026-10-24：受控 Codex CLI 只读适配器（独立草稿 PR）
+
+- 开发分支：`feat/codex-readonly-adapter`
+- 草稿 PR：[PR #2](https://github.com/foxmuldery/ai-desk/pull/2)
+- 最新分支 CI：[GitHub Actions](https://github.com/foxmuldery/ai-desk/actions/runs/40071724759) — 24 项自动化测试通过；Python 编译、前端语法、Shell 语法检查通过。
+- 已实现并默认关闭：`codex-readonly` 适配器、`codex-lab` Git 测试目录白名单、本地非交互 Codex CLI 调用、JSONL 结束事件验收、执行超时与失败反馈。
+- 安全边界：只在 loopback 可用；非 loopback + Codex 同时启用时拒绝启动；隔离传给 Codex 子进程的环境变量，避免继承 AI Desk bearer token。
+- 测试使用隔离假 CLI，无需 ChatGPT 认证或网络；这不代表真实 Codex 在 Mac Studio 已执行成功。
+- Mac Studio 实机验证：[Issue #3](https://github.com/foxmuldery/ai-desk/issues/3)
+- S22 Ultra + Typeless 安全连接：[Issue #4](https://github.com/foxmuldery/ai-desk/issues/4)
+- 独立安全复核：[Issue #5](https://github.com/foxmuldery/ai-desk/issues/5)
+
+**尚未完成**：在目标 Mac Studio 上验证用户报告的 `codex-cli 0.144.5` 对参数的实际支持、复用 ChatGPT 登录、真实只读命令和结果；手机到 Mac 的真实执行链路仍未开放。
+
+## 2026-10-24：只读实机烟雾测试脚本
+
+- 新增 `scripts/smoke-codex-readonly.sh`：仅针对 `$HOME/AI-Desk-Sandbox` 独立 Git 测试仓库调用一次真实 Codex CLI。
+- 执行时显示脱敏状态；同时校验零退出码、`turn.completed` 事件、非空最终回复，以及前后 Git 状态与 README 校验值不变。
+- 额外假 CLI 测试覆盖成功、非零退出、缺少完成事件和测试文件被修改。
+- 最新执行：[GitHub Actions 40073339517](https://github.com/foxmuldery/ai-desk/actions/runs/40073339517) — **28 项测试通过**，包括 Python 编译、JavaScript 与 shell 语法检查。
+- 真实 Mac Studio 尚未运行此脚本；需按 `docs/CODEX_LOCAL_TEST.md` 操作，并只回传 `PREFLIGHT_OK / SMOKE_OK / SMOKE_FAIL` 脱敏状态。
+
+## 2026-10-24：真实 CLI smoke 通过；Coordinator smoke 待实机验收
+
+用户在 Mac Studio 原生终端提供以下结果：
+
+```text
+GIT_UNCHANGED
+CODEX_TURN_COMPLETED
+SMOKE_OK: real Codex read-only CLI turn completed; lab Git state unchanged.
+```
+
+这确认 Mac Studio 上真实 `codex-cli 0.144.5` 与现有 ChatGPT 登录可完成一次只读 `codex exec` 任务，脚本所检查的独立 Git 测试仓库状态及 README 摘要没有变化。该证据由用户终端提供，**不能替代 AI Desk Coordinator 调度验收**。
+
+本次额外实现：
+
+- `scripts/smoke-coordinator-codex.py`：只在 `127.0.0.1` 启动临时 Coordinator、随机令牌和 SQLite 数据库，从 HTTP API 发送一条 `codex-readonly` 任务，验证真实执行器成功以及 `adapter.result` 审计事件，然后删除临时数据库并核对测试仓库没有变化。
+- `tests/test_coordinator_smoke.py`：三个隔离假 CLI 场景（正常完成、失败事件、测试仓库被修改）。
+- [GitHub Actions 40077097985](https://github.com/foxmuldery/ai-desk/actions/runs/40077097985)：**31 项自动化测试通过**，仍不等于 Mac Studio 上 Coordinator 联调通过。
+- Mac 实机下一步：在已克隆的功能分支执行 `git pull --ff-only`，运行 `python3 scripts/smoke-coordinator-codex.py`，只回传 `COORDINATOR_SMOKE_OK` 或脱敏错误码。
+
+仍未完成：真实手机 S22 Ultra → Mac Studio 的 HTTPS 派单、手机锁屏通知、Codex 写入权限审批、多 Mac Agent。仍然默认不开放真实 Codex 的局域网访问。

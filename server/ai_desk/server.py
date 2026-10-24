@@ -12,6 +12,7 @@ from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 
 from .adapters import run_adapter
+from .codex_adapter import CodexConfigurationError, enabled as codex_enabled, workspace_for
 from .store import TaskStore
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -33,10 +34,13 @@ def process_task(task_id: str) -> None:
         return
     try:
         task = store.set_status(task_id, "accepted", summary="Persisted by coordinator; waiting for worker.")
-        task = store.set_status(task_id, "running", summary="Dry-run adapter is running.")
+        task = store.set_status(task_id, "running", summary="Task adapter is running.")
         result = run_adapter(task["adapter"], task)
         store.add_event(task_id, "adapter.result", result)
-        store.set_status(task_id, result["status"], summary=result["summary"])
+        store.set_status(
+            task_id, result["status"], summary=result["summary"],
+            error_code=result.get("error_code"),
+        )
     except Exception as exc:
         current = store.get_task(task_id)
         if current and current["status"] in ("queued", "accepted", "running", "needs_input", "unknown"):
@@ -172,6 +176,21 @@ class Handler(BaseHTTPRequestHandler):
             return
         if not self._authorized():
             return
+        if path == "/api/v1/capabilities":
+            adapters = [{"id": "dry-run", "label": "Dry-run（模拟执行）", "directory_id": "demo"}]
+            if codex_enabled() and BIND in ("127.0.0.1", "localhost", "::1"):
+                try:
+                    workspace_for("codex-lab")
+                except CodexConfigurationError:
+                    pass
+                else:
+                    adapters.append({
+                        "id": "codex-readonly",
+                        "label": "Codex 只读检查（Mac Studio）",
+                        "directory_id": "codex-lab",
+                    })
+            self._json(200, {"adapters": adapters})
+            return
         if path == "/api/v1/tasks":
             try:
                 limit = int(parse_qs(parsed.query).get("limit", ["50"])[0])
@@ -222,11 +241,29 @@ class Handler(BaseHTTPRequestHandler):
         if not isinstance(target, str) or target not in ("mac-studio",):
             self._json(400, {"error": {"code": "TARGET_NOT_ALLOWED", "message": "MVP only registers mac-studio"}})
             return
-        if not isinstance(adapter, str) or adapter not in ("dry-run",):
-            self._json(400, {"error": {"code": "ADAPTER_NOT_ALLOWED", "message": "MVP only enables dry-run"}})
-            return
-        if not isinstance(directory_id, str) or directory_id != "demo":
-            self._json(400, {"error": {"code": "DIRECTORY_NOT_ALLOWED", "message": "MVP only enables the demo directory ID"}})
+        if adapter == "codex-readonly":
+            if BIND not in ("127.0.0.1", "localhost", "::1") or not codex_enabled():
+                self._json(403, {"error": {
+                    "code": "CODEX_READONLY_DISABLED",
+                    "message": "Real Codex is disabled except in explicit local-only mode."
+                }})
+                return
+            try:
+                workspace_for(directory_id)
+            except (CodexConfigurationError, TypeError) as exc:
+                self._json(400, {"error": {"code": "DIRECTORY_NOT_ALLOWED", "message": str(exc)}})
+                return
+        elif adapter == "dry-run":
+            if directory_id != "demo":
+                self._json(400, {"error": {
+                    "code": "DIRECTORY_NOT_ALLOWED",
+                    "message": "Dry-run only allows the demo directory ID."
+                }})
+                return
+        else:
+            self._json(400, {"error": {
+                "code": "ADAPTER_NOT_ALLOWED", "message": "Adapter is not registered."
+            }})
             return
         if not idem or len(idem) > 128:
             self._json(400, {"error": {"code": "IDEMPOTENCY_KEY_REQUIRED", "message": "Send a unique Idempotency-Key header"}})
@@ -264,6 +301,8 @@ class Handler(BaseHTTPRequestHandler):
 
 def main() -> None:
     is_loopback = BIND in ("127.0.0.1", "localhost", "::1")
+    if not is_loopback and codex_enabled():
+        raise SystemExit("Real Codex read-only tasks are not enabled for LAN clients in this milestone.")
     if not is_loopback:
         if len(TOKEN) < 32:
             raise SystemExit("Refusing non-loopback bind without a strong AI_DESK_TOKEN (at least 32 characters).")
