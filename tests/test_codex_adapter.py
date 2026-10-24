@@ -23,6 +23,11 @@ import pathlib
 import sys
 
 args = sys.argv[1:]
+# Mimic codex-cli argument parser: approval flag is global and must
+# precede exec. Old smoke/adapter code accidentally placed it after exec.
+if (len(args) < 4 or args[0:3] != ["--ask-for-approval", "never", "exec"]):
+    print("error: unexpected argument '--ask-for-approval' found", file=sys.stderr)
+    sys.exit(2)
 prompt = sys.stdin.read()
 pathlib.Path(__CAPTURE_PATH__).write_text(
     json.dumps({
@@ -102,7 +107,7 @@ class CodexReadOnlyAdapterTests(unittest.TestCase):
         self.assertIn("检查完成", result["summary"])
         capture = json.loads(self.capture.read_text(encoding="utf-8"))
         args = capture["args"]
-        self.assertEqual(args[0], "exec")
+        self.assertEqual(args[:3], ["--ask-for-approval", "never", "exec"])
         self.assertIn("--ignore-user-config", args)
         self.assertIn("--ephemeral", args)
         self.assertEqual(args[args.index("--sandbox") + 1], "read-only")
