@@ -20,6 +20,11 @@ from pathlib import Path
 import sys
 
 args = sys.argv[1:]
+# Stand in for the real Codex CLI parser. Global flags after "exec"
+# are rejected with exit code 2 on the user's reported CLI version.
+if args[:3] != ["--ask-for-approval", "never", "exec"]:
+    print("error: unexpected argument '--ask-for-approval' found", file=sys.stderr)
+    sys.exit(2)
 sys.stdin.read()
 mode = os.environ.get("FAKE_MODE", "success")
 if mode == "exit":
