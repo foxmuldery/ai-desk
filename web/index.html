@@ -4,41 +4,87 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#111114">
-  <title>AI Desk｜AI 总机</title>
+  <title>AI Desk｜手机任务实验</title>
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
 <main>
   <header>
-    <div><h1>AI Desk <span style="color:var(--red)">/</span> AI 总机</h1><div class="sub">本地优先 · 多电脑任务控制台</div></div>
-    <span class="pill" id="connection">检查连接中</span>
+    <div>
+      <h1>AI Desk <span class="brand-separator">/</span> AI 总机</h1>
+      <div class="sub">手机任务实验 · 安全模拟模式</div>
+    </div>
+    <span class="pill" id="connection" role="status">检查服务中</span>
   </header>
+
+  <section class="card profile-intro">
+    <div class="row">
+      <strong><span class="state-dot"></span> 仅模拟任务</strong>
+      <span class="pill muted-pill">不执行 Codex</span>
+    </div>
+    <p class="hint">
+      这一步只验证手机连接、Typeless 输入和任务状态回传。
+      提交的文字不会用于真实执行，也不会修改 Mac Studio 上的项目文件。
+    </p>
+  </section>
 
   <section class="card">
     <div class="center">
-      <button class="mic" type="button" id="focusInput" aria-label="开始输入">✳</button>
-      <div><strong>交代任务</strong></div>
-      <div class="muted">点按输入框后，可切换到 Typeless 口述</div>
+      <button class="mic" type="button" id="focusInput" aria-label="聚焦任务输入框">✳</button>
+      <strong>交代一条模拟任务</strong>
+      <div class="muted">点按下方输入框，使用 Typeless 语音转写</div>
     </div>
-    <label for="token">访问令牌</label>
-    <input id="token" type="password" autocomplete="current-password" placeholder="输入本机配置的 AI_DESK_TOKEN">
+
+    <label for="token">临时访问令牌</label>
+    <input id="token" type="password" autocomplete="off" spellcheck="false"
+           placeholder="输入 Mac Studio 终端打印的临时令牌">
+    <div class="hint">仅保存在当前页面内存中；不要将令牌发送到聊天或添加到 URL。</div>
+    <div class="row control-row">
+      <button class="secondary" type="button" id="verify">验证连接与权限</button>
+      <span class="muted" id="verification" role="status">尚未验证</span>
+    </div>
+
     <div class="split">
-      <div><label for="target">执行电脑</label><select id="target"><option value="mac-studio">Mac Studio（MVP）</option></select></div>
-      <div><label for="adapter">任务适配器</label><select id="adapter"><option value="dry-run">Dry-run（仅模拟，不执行命令）</option></select></div>
+      <div>
+        <label for="target">目标电脑</label>
+        <select id="target"><option value="mac-studio">Mac Studio（模拟任务）</option></select>
+      </div>
+      <div>
+        <label for="adapter">执行模式</label>
+        <select id="adapter"><option value="dry-run">Dry-run（只模拟）</option></select>
+      </div>
     </div>
+
     <label for="instruction">任务指令</label>
-    <textarea id="instruction" placeholder="例如：检查项目测试，列出计划，但不要修改文件或部署。"></textarea>
-    <div class="hint">提交前请检查转写文字。当前版本只运行 dry-run 适配器，不会调用 Codex 或执行电脑命令。</div>
-    <button class="primary" id="submit">提交任务</button>
-    <div class="error" id="error" role="alert"></div>
+    <textarea id="instruction" maxlength="4000"
+              placeholder="测试 AI Desk 模拟派单，不允许执行任何真实操作。"></textarea>
+    <div class="hint">检查 Typeless 转写结果后再点击提交。提交失败时保留原文。</div>
+    <button class="primary" type="button" id="submit">提交模拟任务</button>
+    <div class="error" id="error" role="alert" aria-live="polite"></div>
   </section>
 
   <section class="card">
-    <div class="row"><h2 style="font-size:17px;margin:0">最近任务</h2><button class="secondary" id="refresh">刷新</button></div>
-    <div class="hint">任务保存在运行服务的电脑上；手机重新打开后可重新读取。</div>
-    <div class="tasks" id="tasks" style="margin-top:14px"><div class="muted">尚未加载任务</div></div>
+    <div class="row">
+      <h2>最近任务</h2>
+      <button class="secondary" type="button" id="refresh">刷新</button>
+    </div>
+    <div class="hint">任务保存在 Mac Studio 上的实验数据库中；手机重新打开页面后可重新查询。</div>
+    <div class="tasks" id="tasks" aria-live="polite">
+      <div class="muted">请输入令牌并验证连接。</div>
+    </div>
   </section>
-  <div class="hint center">AI Desk MVP · dry-run · 不要将此开发服务暴露到公网</div>
+
+  <section class="card">
+    <h2>前台语音反馈测试</h2>
+    <label class="checkbox-row" for="speakEnabled">
+      <input id="speakEnabled" type="checkbox">
+      <span>任务结束时尝试中文语音播报（仅页面打开时）</span>
+    </label>
+    <div class="hint">浏览器可能限制自动播报；本阶段不保证后台或锁屏通知。</div>
+    <button class="secondary voice-test" type="button" id="voiceTest">测试中文语音</button>
+  </section>
+
+  <footer class="hint center">AI Desk / S22 Ultra 测试版 · Tailnet 私有 HTTPS · Dry-run only</footer>
 </main>
 <script src="/app.js" defer></script>
 </body>
