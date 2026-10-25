@@ -143,16 +143,31 @@ sh scripts/smoke-codex-readonly.sh
 
 ## 实机验收
 
-- [ ] `codex exec --help` 显示所需参数（0.144.5 本机确认）。
-- [ ] 在同一 macOS 用户下 `codex login status` 显示 ChatGPT 已登录。
+- [x] `codex exec --help` 显示所需参数（0.144.5 本机确认，`PREFLIGHT_OK`）。
+- [x] 在同一 macOS 用户下 `codex login status` 显示 ChatGPT 已登录。
 - [ ] 默认禁用 Codex，未启用时 API 返回 `CODEX_READONLY_DISABLED`。
-- [ ] 本机启用时只出现 `codex-lab` 测试目录，不能指定其他项目路径。
-- [ ] 实际进程执行完成，结果为 Codex 的真实汇报而非模拟内容。
+- [x] 测试脚本在本机通过 `codex-lab` 的目录白名单调用；拒绝其他目录 ID 的测试已在 CI 覆盖。
+- [x] Mac Studio CLI-only 与 Coordinator→真实 Codex 的 smoke 均由用户报告通过。
 - [ ] 验证目录中 `README.md`、`.git` 未被改写；检查 `git status`。
 - [ ] 非零退出、`turn.failed`、空结果、超时都必须标记失败。
 - [ ] 禁止对手机或 LAN 开放真实 Codex 适配器，直到远程授权与连接完成独立安全验收。
-- [ ] 用真机记录实际 Codex CLI 兼容性和测试证据，更新 `docs/DEV_STATUS.md`。
+- [x] 以用户终端脱敏结果记录 Mac Studio 的 CLI 和 Coordinator 集成验收，并同步更新 `docs/DEV_STATUS.md`。
 
 ## 后续：手机到 Mac
 
 在本机只读闭环成功后，独立实现 S22 Ultra + Typeless 的认证、HTTPS、设备绑定、按操作分级审批。上线前必须实测浏览器通知和锁屏限制；不要因真实 CLI 可用就贸然放开 LAN 执行。
+
+## 2026-10-25：Mac Studio Coordinator 本机联调记录
+
+已使用 `scripts/smoke-coordinator-codex.py`。用户原生终端提供：
+
+```text
+COORDINATOR_SMOKE_START: loopback-only service with temporary database
+Only the isolated lab is used. No task details or tokens will be printed.
+GIT_UNCHANGED
+COORDINATOR_SMOKE_OK
+```
+
+这表示临时本机 Coordinator 成功经 SQLite 和 `codex-readonly` 调用真实 Codex，HTTP 查询确认成功状态及审计事件，测试仓库文件检查未检测到变化。该结果源于用户终端输出，并非助手远程检查 Mac 的产物。
+
+**尚需独立验收**：安全审查、可供手机连接的可信 HTTPS、Typeless 输入、手机前台和后台通知、任何真实远程 Codex 执行权限。PR #2 在这些审批与验收前保持 Draft；切勿因本机 smoke 成功就将服务暴露到公网。
