@@ -6,7 +6,7 @@
 
 仓库： https://github.com/foxmuldery/ai-desk
 
-当前实现是 **单机 dry-run MVP 骨架**。代码通过 GitHub Actions 的部分提交测试，但尚未在目标 Mac Studio 和 Samsung S22 Ultra 上现场运行，因此不能视为实机验收通过。
+当前实现是 **单机 dry-run Coordinator + 实验性 Codex CLI 只读适配器**。截至 2026-10-25，Mac Studio 上 CLI-only 与 Coordinator→真实 Codex 的本机只读 smoke 已获用户终端 PASS 回报；S22 Ultra 的安全 HTTPS 派单、Typeless 和锁屏通知尚未实机验证。此结果不能代表手机远程闭环已经完成。
 
 ## 已实现
 
