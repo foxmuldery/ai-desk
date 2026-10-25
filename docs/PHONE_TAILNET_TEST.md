@@ -30,15 +30,33 @@ AI Desk phone-dry-run Profile
 
 ## 步骤 0：只读前置检查
 
-在 Mac Studio 的终端执行：
+在 Mac Studio 的终端，先从本仓库手机测试分支运行：
 
 ```sh
-command -v tailscale || true
-tailscale version
+cd "$HOME/AI-Desk-Phone-Test"
+sh scripts/check-phone-tailnet.sh
+```
+
+**如果还没有克隆该目录**，先按照下方“步骤 1”的 `git clone` 命令克隆，再执行本检查。检查脚本不会开启 Tailscale、不会执行 Serve、不修改系统网络或路由器，也不会打印真实设备名、IP 或 tailnet 域名。
+
+可能出现的脱敏结果：
+
+- `TAILNET_CLI_OK` + `TAILNET_READY`：macOS CLI 存在，Mac Studio 已登录并连接。
+- `TAILNET_CLIENT_MISSING`：可能需要安装 Tailscale，或手动启用 Tailscale CLI。
+- `TAILNET_NOT_CONNECTED`：需要本人在 Mac 端完成 Tailscale 登录。
+- `SERVE_PORT_FREE_TO_REVIEW`：当前检查未发现 Serve 配置，可在确认端口空闲后继续。
+- `SERVE_CONFIG_REVIEW_REQUIRED`：发现已有/未知 Serve 配置，**禁止覆盖**，先在本机查看 `tailscale serve status`。
+- `SERVE_STATUS_UNAVAILABLE`：该 CLI 未能读取 Serve 配置，先排查客户端版本及权限。
+
+如需在 Mac 本地查看详细状态，可运行：
+
+```sh
 tailscale status
 tailscale serve status
 tailscale funnel status
 ```
+
+这些命令的原始结果可能含私有主机名/IP，**不要原样复制到公开仓库或聊天**。
 
 **如果终端提示 `tailscale: command not found`：** 可能是未安装，也可能是 macOS 应用内置 CLI 未加入 PATH。
 
@@ -86,7 +104,7 @@ sh scripts/run-phone-dryrun.sh
 tailscale serve --https=8443 http://127.0.0.1:8766
 ```
 
-不要加 `--bg`，这样测试时路由只在前台存在；不要使用 `tailscale funnel`。CLI 会显示 tailnet 内 HTTPS 地址，通常形如 `https://<设备>. <tailnet>.ts.net:8443`（实际以你的终端打印为准，域名中**没有空格**）。
+不要加 `--bg`，这样测试时路由只在前台存在；不要使用 `tailscale funnel`。CLI 会显示 tailnet 内 HTTPS 地址，通常形如 `https://<设备>.<tailnet>.ts.net:8443`（实际以你的终端打印为准，域名中**没有空格**）。
 
 如果 Tailscale 要求在浏览器上确认启用 HTTPS，按指引由本人授权。若与已有 Serve 配置冲突，停止操作，不使用 `tailscale serve reset`（这可能清除其他服务）。
 
