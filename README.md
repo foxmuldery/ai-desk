@@ -2,7 +2,7 @@
 
 将闲置的 Samsung Galaxy S22 Ultra 变成多电脑 AI 工作控制台：通过 Typeless 语音输入任务，统一调度多台 Mac 上的 Codex 与其他应用，并在任务完成、失败或需要决策时通知手机、播报结果。
 
-> **当前阶段：单机 dry-run MVP 骨架已提交，尚待 CI 与真实设备验证。** 目前可以启动本地 HTTP 服务和手机网页界面；任务只经过 dry-run 适配器，不会执行 Codex、shell 或其他应用。
+> **当前阶段：Mac Studio 本机真实 Codex 只读闭环已获用户终端 PASS；手机连接仍处于独立 dry-run 试验。** 正在开发的手机分支不包含真实 Codex adapter，远程任务只能模拟执行。S22 Ultra + Typeless 尚待实机验证。
 
 ## 已确定的原则
 
@@ -92,12 +92,26 @@ PYTHONPATH=server python3 -m compileall -q server tests
 
 当前 dry-run 是模拟执行，用于验证任务存储与 UI，不是 Codex 执行器。
 
+## 手机联调分支（仅 dry-run）
+
+此分支 `feat/phone-dry-run-tailnet` 新增：
+- 强制的 `phone-dry-run` 服务执行 Profile，仅允许 dry-run，禁止通过手机和代理执行 Codex。
+- 独立 `127.0.0.1:8766` 启动脚本、强随机令牌和手机实验数据库。
+- 手机界面检查服务模式及适配器能力后才允许提交任务；提交失败时保留文本和幂等键。
+- Tailscale Serve 私有 HTTPS 联调说明、脱敏的准备检查脚本。
+- 后台禁执行回归测试、HTTP 测试和前端动态测试。
+
+**测试及实机状态：** Mac Studio 本机 Codex 只读执行已通过用户终端回报，但它在**独立的 [PR #2](https://github.com/foxmuldery/ai-desk/pull/2)**，没有开放给手机。本手机分支为 [PR #6](https://github.com/foxmuldery/ai-desk/pull/6) 草稿，S22 Ultra 尚未联调。
+
+开始手机准备前先阅读：[S22 Ultra 私有 HTTPS + dry-run 验收指南](docs/PHONE_TAILNET_TEST.md)。
+
 ## 当前实现状态
 
-已具备单机 dry-run Coordinator、SQLite 任务记录、背景队列、幂等键保护、手机优先网页界面及测试。当前仍未接入真实 Codex，也未完成手机到 Mac 的安全 LAN 通信和 S22 Ultra 实机验证。请查看 [docs/DEV_STATUS.md](docs/DEV_STATUS.md) 获取逐项状态与 CI 证据。
+主分支已有可运行 dry-run Coordinator、SQLite、队列、认证与手机网页。独立 Codex 只读 PR 已在 Mac Studio 上通过本机测试；手机安全连接及后台通知仍待验收。详见 [docs/DEV_STATUS.md](docs/DEV_STATUS.md)。
 
 ## 文档索引
 
+- [S22 Ultra 安全手机联调（仅模拟执行）](docs/PHONE_TAILNET_TEST.md)
 - [当前开发状态与 CI 证据](docs/DEV_STATUS.md)
 - [系统架构](docs/ARCHITECTURE.md)
 - [研发路线与里程碑](docs/ROADMAP.md)
@@ -120,8 +134,8 @@ PYTHONPATH=server python3 -m compileall -q server tests
 
 ## 开发状态
 
-当前只完成设计文档的首轮落库。尚未完成：可运行代码、端到端测试、真实设备安装、Typeless 兼容性验证、Codex 适配器验证和多电脑测试。后续开发应以验收证据更新状态，不以文档存在代替功能完成。
+已完成 Python Coordinator 的开发和模拟任务自动化测试，并已取得 Mac Studio 真正 Codex 只读任务与 Coordinator 本机联调成功的终端证据。仍未完成：S22 Ultra 的私有 HTTPS 联调、Typeless 实机确认、后台通知和多电脑测试。对每项能力均以真实验收结果而不是代码存在作为完成依据。
 
 ## 安全提示
 
-本服务会触发本机应用和代码执行，因此默认只绑定到可信局域网接口，要求认证，限制工作目录，记录审计日志；不应将调度端口直接暴露到互联网。跨网络访问需要另行设计安全的 VPN 或经过认证的远程入口。
+默认只在 `127.0.0.1` 提供本机服务，不得暴露到公网；`phone-dry-run` Profile 禁用所有真实执行器，Tailscale Serve 仅为手机实验提供私有 HTTPS 入口。服务仍要求强随机令牌、目录 ID 和审计。真实 Codex 不允许通过此手机入口执行。
