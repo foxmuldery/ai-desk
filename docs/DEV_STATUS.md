@@ -1,6 +1,6 @@
 # 开发状态记录
 
-更新日期：2026-10-24
+更新日期：2026-10-25
 
 ## 当前版本
 
@@ -40,10 +40,10 @@
 
 ## 当前限制
 
-- 未在 Mac Studio 本机运行。
+- 已在 Mac Studio 本机完成 CLI-only 与 Coordinator→Codex 的只读集成烟雾测试（2026-10-25，用户终端报告 `SMOKE_OK` 和 `COORDINATOR_SMOKE_OK`）；尚未进行 Android 远程联调。
 - 未在 S22 Ultra 实机验证 Typeless、通知、TTS；前台浏览器播报已写入代码，但真实浏览器自动播放策略仍需实测。
 - 手机与 Mac 的安全 LAN 通信尚未在真实设备上配置验证；UI/API 目前默认在本机 loopback 上验证。代码已要求 LAN 模式同时具备强 token 和 TLS 证书/私钥。
-- 只读 Codex CLI 适配器已在独立分支编码，默认关闭、仅本机可用；假 CLI 测试和 Mac Studio 实机测试尚待完成，不能称为真实任务已成功运行。
+- 只读 Codex CLI 适配器已在独立分支实现，默认关闭、仅本机可用；Mac Studio 实机只读任务和 Coordinator 本机调度测试已通过，未开放手机远程真实执行。
 - 未实现多电脑 Agent 注册、心跳与任务分发。
 - 未实现 Android 后台可靠通知或原生应用。
 - 尚未完成全面安全审查。
@@ -55,7 +55,7 @@
 3. 在 Mac Studio 安全测试目录本地运行 dry-run。
 4. 配置并实测手机信任的 TLS 证书，验证 S22 Ultra 到 Mac 的 LAN 通信；不将明文 HTTP 直接暴露到整个 LAN。
 5. 在安全访问方案通过后，实测 S22 Ultra + Typeless。
-6. 按 docs/CODEX_LOCAL_TEST.md 实测并验收受控 Codex CLI 只读适配器。
+6. Mac Studio 本机受控 Codex 只读集成测试已通过；接下来独立完成安全审查与局域网 dry-run 手机验收，不能直接开放远程 Codex。
 7. 扩展多电脑执行代理。
 
 ## 2026-10-24：受控 Codex CLI 只读适配器（独立草稿 PR）
@@ -100,3 +100,22 @@ SMOKE_OK: real Codex read-only CLI turn completed; lab Git state unchanged.
 - Mac 实机下一步：在已克隆的功能分支执行 `git pull --ff-only`，运行 `python3 scripts/smoke-coordinator-codex.py`，只回传 `COORDINATOR_SMOKE_OK` 或脱敏错误码。
 
 仍未完成：真实手机 S22 Ultra → Mac Studio 的 HTTPS 派单、手机锁屏通知、Codex 写入权限审批、多 Mac Agent。仍然默认不开放真实 Codex 的局域网访问。
+
+## 2026-10-25：Mac Studio Coordinator → Codex 真实本机闭环通过
+
+**来源：用户提供的 Mac Studio 原生终端输出；未经远程独立观察。**
+
+```text
+COORDINATOR_SMOKE_START: loopback-only service with temporary database
+Only the isolated lab is used. No task details or tokens will be printed.
+GIT_UNCHANGED
+COORDINATOR_SMOKE_OK
+```
+
+- 已先通过独立 `codex exec` 只读 smoke（`PREFLIGHT_OK`、`CODEX_TURN_COMPLETED`、`SMOKE_OK`）。
+- 此次使用 `scripts/smoke-coordinator-codex.py`，从 `127.0.0.1` HTTP API 提交任务，经临时 SQLite 队列与 `codex-readonly` 执行器调用 Mac Studio 上已登录的真实 Codex，再读取任务成功状态和 `adapter.result` 审计事件。
+- 脚本复核隔离测试仓库 Git 状态及 README 校验值没有变化，并清理临时 Coordinator 与数据库。
+- 测试脚本的成功结论仅覆盖独立无敏感信息 Git lab 的本机只读执行，不证明所有项目、任意工作目录、任何写操作或手机远程执行安全。
+- 此里程碑对应 [Issue #3](https://github.com/foxmuldery/ai-desk/issues/3)；[PR #2](https://github.com/foxmuldery/ai-desk/pull/2) 仍保持草稿，等待独立 [安全审查 #5](https://github.com/foxmuldery/ai-desk/issues/5)。
+
+**接下来的验收目标**：S22 Ultra + Typeless → 经过可信 HTTPS/认证的 Mac Studio AI Desk → `dry-run` → 手机查询结果。真实 Codex 仍不暴露给手机或 LAN，写权限和多 Mac Agent 留待后续。
