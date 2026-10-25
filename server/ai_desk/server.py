@@ -12,6 +12,7 @@ from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 
 from .adapters import run_adapter
+from .policy import adapter_allowed, validate_profile
 from .store import TaskStore
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -20,6 +21,7 @@ DB_PATH = os.environ.get("AI_DESK_DB", str(ROOT / "data" / "ai-desk.sqlite3"))
 BIND = os.environ.get("AI_DESK_BIND", "127.0.0.1")
 PORT = int(os.environ.get("AI_DESK_PORT", "8765"))
 TOKEN = os.environ.get("AI_DESK_TOKEN", "")
+PROFILE = os.environ.get("AI_DESK_EXECUTION_PROFILE", "local")
 TLS_CERT = os.environ.get("AI_DESK_TLS_CERT", "")
 TLS_KEY = os.environ.get("AI_DESK_TLS_KEY", "")
 store = TaskStore(DB_PATH)
@@ -30,6 +32,16 @@ def process_task(task_id: str) -> None:
     """Run one registered adapter outside the request thread."""
     task = store.get_task(task_id)
     if not task or task["status"] != "queued":
+        return
+    # Defense in depth: even old persisted tasks cannot run a real adapter
+    # under the phone-dry-run profile, regardless of reverse proxy headers.
+    if not adapter_allowed(PROFILE, task["adapter"]):
+        store.add_event(task_id, "policy.blocked", {"adapter": task["adapter"]})
+        store.set_status(
+            task_id, "failed",
+            summary="Execution profile blocked the adapter.",
+            error_code="EXECUTION_PROFILE_BLOCKED",
+        )
         return
     try:
         task = store.set_status(task_id, "accepted", summary="Persisted by coordinator; waiting for worker.")
@@ -88,7 +100,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("X-Frame-Options", "DENY")
         self.send_header("Referrer-Policy", "no-referrer")
-        self.send_header("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'")
+        self.send_header("Content-Security-Policy", "default-src 'self'; style-src 'self'; script-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'")
         self.end_headers()
         self.wfile.write(body)
 
@@ -112,7 +124,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("X-Frame-Options", "DENY")
         self.send_header("Referrer-Policy", "no-referrer")
-        self.send_header("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'")
+        self.send_header("Content-Security-Policy", "default-src 'self'; style-src 'self'; script-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'")
         self.end_headers()
         self.wfile.write(body)
         return True
@@ -163,14 +175,22 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("X-Content-Type-Options", "nosniff")
             self.send_header("X-Frame-Options", "DENY")
             self.send_header("Referrer-Policy", "no-referrer")
-            self.send_header("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'")
+            self.send_header("Content-Security-Policy", "default-src 'self'; style-src 'self'; script-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'")
             self.end_headers()
             self.wfile.write(content)
             return
         if path == "/api/v1/health":
-            self._json(200, {"ok": True, "service": "ai-desk", "mode": "dry-run"})
+            self._json(200, {
+                "ok": True, "service": "ai-desk",
+                "mode": "phone-dry-run" if PROFILE == "phone-dry-run" else "dry-run",
+            })
             return
         if not self._authorized():
+            return
+        if path == "/api/v1/capabilities":
+            self._json(200, {"adapters": [
+                {"id": "dry-run", "label": "Dry-run（仅模拟）", "directory_id": "demo"}
+            ]})
             return
         if path == "/api/v1/tasks":
             try:
@@ -179,13 +199,17 @@ class Handler(BaseHTTPRequestHandler):
             except ValueError:
                 self._json(400, {"error": {"code": "INVALID_REQUEST", "message": "limit must be an integer"}})
                 return
-            self._json(200, {"tasks": store.list_tasks(limit)})
+            # Filter at the storage layer: a phone never receives records from
+            # a prior CLI/Codex profile even if DB_PATH was misconfigured.
+            allowed_adapter = "dry-run" if PROFILE == "phone-dry-run" else None
+            self._json(200, {"tasks": store.list_tasks(limit, adapter=allowed_adapter)})
             return
         if path.startswith("/api/v1/tasks/"):
             parts = path.strip("/").split("/")
             task_id = parts[3] if len(parts) >= 4 else ""
             task = store.get_task(task_id)
-            if not task:
+            if not task or not adapter_allowed(PROFILE, task["adapter"]):
+                # Intentionally use the same response as an unknown ID.
                 self._json(404, {"error": {"code": "TASK_NOT_FOUND", "message": "Task not found"}})
                 return
             if len(parts) == 5 and parts[4] == "events":
@@ -222,7 +246,13 @@ class Handler(BaseHTTPRequestHandler):
         if not isinstance(target, str) or target not in ("mac-studio",):
             self._json(400, {"error": {"code": "TARGET_NOT_ALLOWED", "message": "MVP only registers mac-studio"}})
             return
-        if not isinstance(adapter, str) or adapter not in ("dry-run",):
+        if not isinstance(adapter, str) or not adapter_allowed(PROFILE, adapter):
+            self._json(403, {"error": {
+                "code": "EXECUTION_PROFILE_BLOCKED",
+                "message": "Phone dry-run mode does not allow this adapter."
+            }})
+            return
+        if adapter not in ("dry-run",):
             self._json(400, {"error": {"code": "ADAPTER_NOT_ALLOWED", "message": "MVP only enables dry-run"}})
             return
         if not isinstance(directory_id, str) or directory_id != "demo":
@@ -263,6 +293,12 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main() -> None:
+    try:
+        validate_profile(
+            PROFILE, BIND, TOKEN, os.environ.get("AI_DESK_ENABLE_CODEX_READONLY", "")
+        )
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
     is_loopback = BIND in ("127.0.0.1", "localhost", "::1")
     if not is_loopback:
         if len(TOKEN) < 32:

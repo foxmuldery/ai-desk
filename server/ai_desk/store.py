@@ -153,11 +153,18 @@ class TaskStore:
             row = db.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone()
             return dict(row) if row else {}
 
-    def list_tasks(self, limit: int = 50) -> list[dict[str, Any]]:
+    def list_tasks(self, limit: int = 50, *, adapter: str | None = None) -> list[dict[str, Any]]:
+        """Filter at the database layer to prevent cross-profile task disclosure."""
         with self._db() as conn:
-            rows = conn.execute(
-                "SELECT * FROM tasks ORDER BY created_at DESC LIMIT ?", (limit,)
-            ).fetchall()
+            if adapter is None:
+                rows = conn.execute(
+                    "SELECT * FROM tasks ORDER BY created_at DESC LIMIT ?", (limit,)
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT * FROM tasks WHERE adapter = ? ORDER BY created_at DESC LIMIT ?",
+                    (adapter, limit),
+                ).fetchall()
             return [dict(row) for row in rows]
 
     def list_events(self, task_id: str) -> list[dict[str, Any]]:

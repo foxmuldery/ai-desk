@@ -1,59 +1,63 @@
-# 开发状态记录
+# AI Desk｜开发状态
 
-更新日期：2026-10-23
+更新：2026-10-25。以下内容明确区分：**已在 GitHub CI 验证**、**用户在 Mac Studio 本机确认**、**尚待 S22 Ultra 实机验收**。
 
-## 当前版本
+## 已确认：Mac Studio 本机真实 Codex 只读调用
 
-仓库： https://github.com/foxmuldery/ai-desk
+用户在 Mac Studio 上运行 `codex-cli 0.144.5`（ChatGPT 登录）并回报：
 
-当前实现是 **单机 dry-run MVP 骨架**。代码通过 GitHub Actions 的部分提交测试，但尚未在目标 Mac Studio 和 Samsung S22 Ultra 上现场运行，因此不能视为实机验收通过。
+```text
+PREFLIGHT_OK
+GIT_UNCHANGED
+CODEX_TURN_COMPLETED
+SMOKE_OK
+```
 
-## 已实现
+随后执行 `python3 scripts/smoke-coordinator-codex.py`，回报：
 
-- Python 标准库 HTTP Coordinator。
-- SQLite 任务与事件存储。
-- 幂等键去重；同一 key 被用于不同请求时返回 409。
-- 任务状态转换限制；终态任务不能重新打开。
-- 背景 worker 队列；HTTP 请求可在任务执行前返回 queued。
-- 服务重启时恢复 queued 任务；把上次运行中遗留的 accepted/running 任务标记为 unknown，要求核对而不是盲目重跑。
-- Dry-run adapter 白名单：只生成模拟结果，不执行 shell、Codex 或其他应用。
-- 手机优先的静态网页界面，可提交任务、查看列表和事件。
-- 本地启动脚本、环境示例、单元测试、HTTP 集成测试、GitHub Actions。
-- 安全默认：Coordinator 默认绑定 127.0.0.1；非 loopback 绑定要求至少 32 字符 token + TLS 证书/私钥。
+```text
+COORDINATOR_SMOKE_START
+GIT_UNCHANGED
+COORDINATOR_SMOKE_OK
+```
 
-## 已验证的 CI 证据
+这证明已通过在 Mac Studio 上的 **Coordinator → SQLite 队列 → 只读 Codex 适配器 → 真实 Codex CLI → HTTP 状态/审计** 的单机实验。相关变更位于独立草稿 [PR #2](https://github.com/foxmuldery/ai-desk/pull/2)，[Issue #3](https://github.com/foxmuldery/ai-desk/issues/3) 已关闭。
 
-- 基础 Python 单元测试与编译： [run 39916081195](https://github.com/foxmuldery/ai-desk/actions/runs/39916081195) — success。
-- 幂等冲突与 HTTP 集成测试： [run 39956725929](https://github.com/foxmuldery/ai-desk/actions/runs/39956725929) — success。
-- 状态转换测试： [run 39956693179](https://github.com/foxmuldery/ai-desk/actions/runs/39956693179) — success。
-- 背景任务生命周期： [run 39956852474](https://github.com/foxmuldery/ai-desk/actions/runs/39956852474) — success。
-- 背景任务生命周期： [run 39956852474](https://github.com/foxmuldery/ai-desk/actions/runs/39956852474) — success。
-- Worker 异常保护： [run 39956923150](https://github.com/foxmuldery/ai-desk/actions/runs/39956923150) — success。
-- 安全响应头与非 loopback 强令牌限制： [run 39957059833](https://github.com/foxmuldery/ai-desk/actions/runs/39957059833) — success。
-- 非 loopback 缺少 TLS 时拒绝启动： [run 39957232995](https://github.com/foxmuldery/ai-desk/actions/runs/39957232995) — success。
-- 启动脚本区分 loopback HTTP 与 LAN HTTPS： [run 39957330535](https://github.com/foxmuldery/ai-desk/actions/runs/39957330535) — success。
-- 静态资源安全头与 CSP 集成测试： [run 39957569052](https://github.com/foxmuldery/ai-desk/actions/runs/39957569052) — success。
-- 前端 JavaScript 语法检查： [run 39957583178](https://github.com/foxmuldery/ai-desk/actions/runs/39957583178) — success。
-- 任务事件审计轨迹测试： [run 39957078158](https://github.com/foxmuldery/ai-desk/actions/runs/39957078158) — success。
+**不代表**：任意代码修改权限、手机远程真实 Codex、多电脑任务调度或完整独立安全审计已通过。
 
-注意：各条 CI 对应不同 commit；应以最新 commit 对应的 workflow 结果作为最终验收。
+## 本分支：手机安全 dry-run 联调（PR #6）
 
-## 当前限制
+开发分支 `feat/phone-dry-run-tailnet` 基于 `main`，不包含真实 Codex 适配器代码。新增：
 
-- 未在 Mac Studio 本机运行。
-- 未在 S22 Ultra 实机验证 Typeless、通知、TTS；前台浏览器播报已写入代码，但真实浏览器自动播放策略仍需实测。
-- 手机与 Mac 的安全 LAN 通信尚未在真实设备上配置验证；UI/API 目前默认在本机 loopback 上验证。代码已要求 LAN 模式同时具备强 token 和 TLS 证书/私钥。
-- 未实现真实 Codex adapter。
-- 未实现多电脑 Agent 注册、心跳与任务分发。
-- 未实现 Android 后台可靠通知或原生应用。
-- 尚未完成全面安全审查。
+- `phone-dry-run` 执行 Profile；必须 loopback 绑定、至少 32 字符强令牌，且拒绝同时启用真实 Codex 标志。
+- HTTP 任务提交与后台 worker 双重只允许 `dry-run`，重启恢复的非法历史任务也不能执行。
+- 手机任务列表/详情/事件 API 不会暴露其它 adapter 的历史记录。
+- 独立端口 `127.0.0.1:8766` 启动脚本，强随机临时 Bearer Token、独立 SQLite 文件。
+- S22 Ultra 手机网页：核验 `phone-dry-run` Profile 和唯一 dry-run 能力；在提交前必须验证令牌；失败保留文字与幂等键；事件详情在自动刷新后保持打开；任务完成显示“模拟完成”；TTS 默认需用户开启。
+- Tailscale Serve 私有 HTTPS 指引，不使用 Funnel、不改路由器、不开放公网端口。
+- 脱敏的 Tailscale CLI 就绪检查 `scripts/check-phone-tailnet.sh`。
+- HTTP、数据库隔离、代理头伪造、启动保护、Node 前端行为等自动化回归测试。
+
+最新完整测试：[GitHub Actions 40157475717](https://github.com/foxmuldery/ai-desk/actions/runs/40157475717)，成功（更多后续提交应以最新 CI 为准）。
+
+## 仍待真实设备验证
+
+- Mac Studio 是否已安装、登录、能运行 Tailscale CLI。
+- S22 Ultra 是否已安装、登录同一 tailnet、浏览器能打开由 Serve 提供的可信 HTTPS URL。
+- 通过 Typeless 输入中文，提交 dry-run、观察 SQLite 状态与事件查询。
+- 安卓浏览器前台语音播报、切到后台或锁屏时的行为。
+- 其它电脑的 Agent 注册/心跳、应用跨设备执行。
+- 远程真实 Codex 的项目级审批与独立安全复核；本分支**明确不开放**。
 
 ## 下一步
 
-1. 确认最新 CI 通过。
-2. 增加服务层状态机与异常路径测试。
-3. 在 Mac Studio 安全测试目录本地运行 dry-run。
-4. 配置并实测手机信任的 TLS 证书，验证 S22 Ultra 到 Mac 的 LAN 通信；不将明文 HTTP 直接暴露到整个 LAN。
-5. 在安全访问方案通过后，实测 S22 Ultra + Typeless。
-6. 实现受控 Codex adapter。
-7. 扩展多电脑执行代理。
+按 [PHONE_TAILNET_TEST.md](PHONE_TAILNET_TEST.md) 在 Mac Studio 安全准备，先运行：
+
+```sh
+cd "$HOME/AI-Desk-Phone-Test"
+sh scripts/check-phone-tailnet.sh
+```
+
+只回传脱敏状态代码。确认 Tailscale 连接准备完毕后，独立启动 phone-dry-run，再进行 S22 Ultra 的网络、Typeless 和模拟任务验证。
+
+涉及工作：[Issue #4](https://github.com/foxmuldery/ai-desk/issues/4)、[安全审查 Issue #5](https://github.com/foxmuldery/ai-desk/issues/5)、[手机 PR #6](https://github.com/foxmuldery/ai-desk/pull/6)。

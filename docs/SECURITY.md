@@ -77,6 +77,21 @@ AI Desk 能触发本机应用、访问项目文件和运行开发工具。主要
 - 取消操作需记录是否真正停止底层执行。
 - 服务关闭、更新和备份都应有明确恢复流程。
 
+## 手机试验的额外安全边界（2026-10-25）
+
+手机入口必须与 Mac Studio 本机真实 Codex 适配器分离。本分支使用 `AI_DESK_EXECUTION_PROFILE=phone-dry-run`：
+
+- 只允许 Coordinator 绑定 `127.0.0.1`（或其它明确的 loopback）、使用至少 32 字符的随机访问令牌，拒绝同时启用 `AI_DESK_ENABLE_CODEX_READONLY=1`。
+- `POST /api/v1/tasks` 只接受 `adapter=dry-run` 和目录 ID `demo`；任何真实 Codex、shell 或未知执行器均返回 `EXECUTION_PROFILE_BLOCKED`。
+- 后台 worker 再次检查 Profile；如果重启恢复的历史队列中存在其它适配器，会标记为失败并记录 `policy.blocked`，绝不执行。
+- 手机任务列表和任务/事件详情只返回 `dry-run` 记录，避免错误指向其它执行器的数据库时泄露敏感指令或执行摘要。
+- 不相信 `X-Forwarded-For`、`X-Real-IP`、客户端可伪造的 `Host` 或其它代理头作为授权依据。
+- 手机入口只允许通过私有 Tailscale **Serve** + TLS，**禁止 Funnel**、公网端口映射、明文远程 HTTP、禁用证书验证。Tailnet ACL 和 HTTPS 只负责传输与设备成员访问，不能替代 AI Desk 强随机 Bearer Token。
+- 令牌仅保存在浏览器当前页面内存、由 Mac Studio 启动终端手动提供；不放入 URL、LocalStorage、Git、截图或普通日志。
+- 终端与 SQLite 中的任务指令仍属于敏感数据；默认只运行无敏感内容的测试指令，测试结束后按数据保留策略清理。手机锁屏/后台播报不属于本阶段已验证能力。
+
+**注意**：`127.0.0.1` 并不能单独证明请求来自 Mac Studio 用户，因为 Tailscale Serve 会代理远程请求到本机 loopback。真正的执行权限由明确的 Profile 和 adapter allowlist 控制；不能把已经开启真实 Codex 的 Coordinator 直接复用给手机。
+
 ## 公开仓库注意事项
 
 当前 GitHub 仓库是公开仓库。只能提交通用代码、示例配置和已脱敏文档。不要提交个人 IP、局域网真实拓扑、真实项目路径、token、账号信息、私有素材或机器唯一标识。真实部署配置应留在本机并加入 .gitignore。
