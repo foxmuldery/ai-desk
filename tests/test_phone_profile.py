@@ -184,21 +184,31 @@ class PhoneProfileHTTPTests(unittest.TestCase):
         self.assertEqual(result["error"]["code"], "EXECUTION_PROFILE_BLOCKED")
 
     def test_recovered_old_task_is_blocked_before_execution(self):
+        # The phone must not be able to read the pre-existing Codex task,
+        # even if it learns the task ID; validate worker results only via SQLite.
+        store = TaskStore(self.database)
         deadline = time.monotonic() + 3
         while time.monotonic() < deadline:
-            _, result = request_json(
-                self.base, "/api/v1/tasks/" + self.blocked_task["id"], token=TOKEN
-            )
-            if result["task"]["status"] != "queued":
+            blocked = store.get_task(self.blocked_task["id"])
+            if blocked["status"] != "queued":
                 break
             time.sleep(0.02)
-        self.assertEqual(result["task"]["status"], "failed")
-        self.assertEqual(result["task"]["error_code"], "EXECUTION_PROFILE_BLOCKED")
-        _, audit = request_json(
-            self.base, "/api/v1/tasks/" + self.blocked_task["id"] + "/events",
-            token=TOKEN,
-        )
-        self.assertIn("policy.blocked", [x["event_type"] for x in audit["events"]])
+        self.assertEqual(blocked["status"], "failed")
+        self.assertEqual(blocked["error_code"], "EXECUTION_PROFILE_BLOCKED")
+        events = store.list_events(self.blocked_task["id"])
+        self.assertIn("policy.blocked", [x["event_type"] for x in events])
+
+    def test_other_adapter_task_is_hidden_from_phone_api(self):
+        hidden_id = self.blocked_task["id"]
+        status, listing = request_json(self.base, "/api/v1/tasks?limit=50", token=TOKEN)
+        self.assertEqual(status, 200)
+        self.assertNotIn(hidden_id, [t["id"] for t in listing["tasks"]])
+        for suffix in ("", "/events"):
+            status, result = request_json(
+                self.base, "/api/v1/tasks/" + hidden_id + suffix, token=TOKEN
+            )
+            self.assertEqual(status, 404)
+            self.assertEqual(result["error"]["code"], "TASK_NOT_FOUND")
 
 
 if __name__ == "__main__":
