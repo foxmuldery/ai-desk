@@ -27,4 +27,4 @@ jobs:
       - name: Exercise phone UI authorization and idempotent retry logic
         run: node --test tests/test_phone_ui.mjs
       - name: Verify phone launcher shell syntax
-        run: sh -n scripts/run-phone-dryrun.sh
+        run: sh -n scripts/run-phone-dryrun.sh scripts/check-phone-tailnet.sh
