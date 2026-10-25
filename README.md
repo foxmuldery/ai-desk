@@ -2,7 +2,7 @@
 
 将闲置的 Samsung Galaxy S22 Ultra 变成多电脑 AI 工作控制台：通过 Typeless 语音输入任务，统一调度多台 Mac 上的 Codex 与其他应用，并在任务完成、失败或需要决策时通知手机、播报结果。
 
-> **当前阶段：单机 dry-run MVP 骨架已提交，尚待 CI 与真实设备验证。** 目前可以启动本地 HTTP 服务和手机网页界面；任务只经过 dry-run 适配器，不会执行 Codex、shell 或其他应用。
+> **当前阶段：单机 dry-run 已通过自动化测试；只读 Codex 适配器正在独立分支开发。** 默认仍是模拟执行，真实 Codex 需在 Mac Studio 本机显式启用并通过实机验收，不能直接从手机或局域网触发。
 
 ## 已确定的原则
 
@@ -96,9 +96,15 @@ PYTHONPATH=server python3 -m compileall -q server tests
 
 已具备单机 dry-run Coordinator、SQLite 任务记录、背景队列、幂等键保护、手机优先网页界面及测试。当前仍未接入真实 Codex，也未完成手机到 Mac 的安全 LAN 通信和 S22 Ultra 实机验证。请查看 [docs/DEV_STATUS.md](docs/DEV_STATUS.md) 获取逐项状态与 CI 证据。
 
+## Codex CLI 只读实验（仅 Mac Studio 本机）
+
+Mac Studio 的 Codex CLI 已有 ChatGPT 登录状态，目标版本 0.144.5；不需要额外配置 API Key。实验适配器仅在 `AI_DESK_ENABLE_CODEX_READONLY=1`、预设 Git 测试目录和服务绑定 loopback 时启用，默认关闭；它会要求 Codex 使用只读沙箱，并校验 CLI 完成事件。正式使用前需在目标 Mac 上验证当前 CLI 版本的命令参数与退出事件。
+
+[本机准备与验收步骤](docs/CODEX_LOCAL_TEST.md)。
+
 ## 文档索引
 
-- [当前开发状态与 CI 证据](docs/DEV_STATUS.md)
+- [Codex CLI 本机只读验收](docs/CODEX_LOCAL_TEST.md)\n- [当前开发状态与 CI 证据](docs/DEV_STATUS.md)
 - [系统架构](docs/ARCHITECTURE.md)
 - [研发路线与里程碑](docs/ROADMAP.md)
 - [API 草案](docs/API.md)
@@ -120,7 +126,7 @@ PYTHONPATH=server python3 -m compileall -q server tests
 
 ## 开发状态
 
-当前只完成设计文档的首轮落库。尚未完成：可运行代码、端到端测试、真实设备安装、Typeless 兼容性验证、Codex 适配器验证和多电脑测试。后续开发应以验收证据更新状态，不以文档存在代替功能完成。
+已提交可运行 dry-run Coordinator、SQLite 存储、任务队列、Web UI 及自动化测试。实验性 Codex 只读适配器仅在本机显式开启，目前未经过 Mac Studio 实机认证和 S22 Ultra 验收；真实多电脑执行仍未实现。后续开发应以验收证据更新状态，不以文档存在代替功能完成。
 
 ## 安全提示
 

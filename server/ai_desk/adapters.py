@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from .codex_adapter import run_codex_readonly
+
 
 class AdapterError(ValueError):
     pass
@@ -22,6 +24,7 @@ def run_dry_run(task: dict[str, Any]) -> dict[str, Any]:
 
 ADAPTERS = {
     "dry-run": run_dry_run,
+    "codex-readonly": run_codex_readonly,
 }
 
 

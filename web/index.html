@@ -28,7 +28,7 @@
     </div>
     <label for="instruction">任务指令</label>
     <textarea id="instruction" placeholder="例如：检查项目测试，列出计划，但不要修改文件或部署。"></textarea>
-    <div class="hint">提交前请检查转写文字。当前版本只运行 dry-run 适配器，不会调用 Codex 或执行电脑命令。</div>
+    <div class="hint">提交前请检查转写文字。默认只运行模拟任务；真正的 Codex 检查需要在 Mac Studio 本机明确启用，且仅能读取指定测试仓库。</div>
     <button class="primary" id="submit">提交任务</button>
     <div class="error" id="error" role="alert"></div>
   </section>
@@ -38,7 +38,7 @@
     <div class="hint">任务保存在运行服务的电脑上；手机重新打开后可重新读取。</div>
     <div class="tasks" id="tasks" style="margin-top:14px"><div class="muted">尚未加载任务</div></div>
   </section>
-  <div class="hint center">AI Desk MVP · dry-run · 不要将此开发服务暴露到公网</div>
+  <div class="hint center">AI Desk MVP · 默认 dry-run · 本地只读 Codex 需要手动启用 · 不得直接暴露公网</div>
 </main>
 <script src="/app.js" defer></script>
 </body>

@@ -2,7 +2,38 @@ const $ = (id) => document.getElementById(id);
 const statuses = {queued:"排队中",accepted:"已接收",running:"执行中",needs_input:"等待确认",succeeded:"成功",failed:"失败",cancelled:"已取消",unknown:"状态未知"};
 const knownStatuses = new Map();
 const watchedTasks = new Set();
+const adapterDirectories = new Map([["dry-run", "demo"]]);
 $("focusInput").addEventListener("click", () => $("instruction").focus());
+
+async function loadCapabilities() {
+  if (!$("token").value.trim()) return;
+  try {
+    const response = await fetch("/api/v1/capabilities", {headers: authHeaders()});
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error?.message || "能力列表读取失败");
+    if (!Array.isArray(data.adapters)) return;
+    const select = $("adapter");
+    const previous = select.value;
+    adapterDirectories.clear();
+    const options = data.adapters.map(adapter => {
+      adapterDirectories.set(adapter.id, adapter.directory_id);
+      const option = document.createElement("option");
+      option.value = adapter.id;
+      option.textContent = adapter.label;
+      return option;
+    });
+    select.replaceChildren(...options);
+    if (adapterDirectories.has(previous)) select.value = previous;
+    $("connection").textContent = adapterDirectories.has("codex-readonly")
+      ? "本机在线 · Codex 只读已启用" : "本机在线 · Dry-run";
+  } catch (error) {
+    $("error").textContent = error.message;
+  }
+}
+$("token").addEventListener("change", () => {
+  loadCapabilities();
+  loadTasks();
+});
 
 function speak(text) {
   if (!text || !("speechSynthesis" in window)) return;
@@ -86,7 +117,7 @@ $("submit").addEventListener("click", async () => {
     const r = await fetch("/api/v1/tasks", {
       method:"POST",
       headers:authHeaders({"Content-Type":"application/json","Idempotency-Key":key}),
-      body:JSON.stringify({instruction,target_device_id:$("target").value,adapter:$("adapter").value,working_directory_id:"demo"})
+      body:JSON.stringify({instruction,target_device_id:$("target").value,adapter:$("adapter").value,working_directory_id:adapterDirectories.get($("adapter").value) || "demo"})
     });
     const d = await r.json();
     if (!r.ok) throw new Error(d.error?.message || "任务提交失败");
