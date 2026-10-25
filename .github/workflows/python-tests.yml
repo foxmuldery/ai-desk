@@ -24,3 +24,7 @@ jobs:
         run: python -m compileall -q server tests
       - name: Check frontend JavaScript syntax
         run: node --check web/app.js
+      - name: Exercise phone UI authorization and idempotent retry logic
+        run: node --test tests/test_phone_ui.mjs
+      - name: Verify phone launcher shell syntax
+        run: sh -n scripts/run-phone-dryrun.sh
