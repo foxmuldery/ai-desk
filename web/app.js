@@ -92,8 +92,8 @@ async function verifyAccess() {
   $("error").textContent = "";
   const enteredToken = token();
   if (!enteredToken) {
-    $("verification").textContent = "请先输入临时令牌";
     invalidateVerification();
+    $("verification").textContent = "请先输入临时令牌";
     return false;
   }
   const safeHealth = await checkHealth();
@@ -170,10 +170,13 @@ async function loadTasks() {
       || token() !== authorizedToken) return;
   fetchingTasks = true;
   try {
+    const expectedToken = authorizedToken;
     const response = await fetch("/api/v1/tasks?limit=30", {
-      headers: authHeaders(), cache: "no-store",
+      headers: {Authorization: "Bearer " + expectedToken}, cache: "no-store",
     });
     const data = await response.json();
+    // An in-flight response from an old login must not repaint after token changes.
+    if (!authorizedToken || authorizedToken !== expectedToken || token() !== expectedToken) return;
     if (!response.ok) throw new Error(data.error?.message || "任务查询失败");
     if (!Array.isArray(data.tasks) || data.tasks.some((task) => task.adapter !== "dry-run")) {
       throw new Error("出现非模拟任务，当前手机端已经停止显示结果。");
@@ -270,7 +273,8 @@ async function submitTask() {
   } catch (error) {
     $("error").textContent = "提交状态未确认，可保留原文并安全重试。详情：" + error.message;
   } finally {
-    $("submit").disabled = false;
+    $("submit").disabled = !authorizedToken || authorizedProfile !== "phone-dry-run"
+      || token() !== authorizedToken;
   }
 }
 
