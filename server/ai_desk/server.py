@@ -199,13 +199,17 @@ class Handler(BaseHTTPRequestHandler):
             except ValueError:
                 self._json(400, {"error": {"code": "INVALID_REQUEST", "message": "limit must be an integer"}})
                 return
-            self._json(200, {"tasks": store.list_tasks(limit)})
+            # Filter at the storage layer: a phone never receives records from
+            # a prior CLI/Codex profile even if DB_PATH was misconfigured.
+            allowed_adapter = "dry-run" if PROFILE == "phone-dry-run" else None
+            self._json(200, {"tasks": store.list_tasks(limit, adapter=allowed_adapter)})
             return
         if path.startswith("/api/v1/tasks/"):
             parts = path.strip("/").split("/")
             task_id = parts[3] if len(parts) >= 4 else ""
             task = store.get_task(task_id)
-            if not task:
+            if not task or not adapter_allowed(PROFILE, task["adapter"]):
+                # Intentionally use the same response as an unknown ID.
                 self._json(404, {"error": {"code": "TASK_NOT_FOUND", "message": "Task not found"}})
                 return
             if len(parts) == 5 and parts[4] == "events":
